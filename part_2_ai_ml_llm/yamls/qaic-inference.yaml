@@ -1,0 +1,43 @@
+# QAIC inference pod for Part 3 Option B. Replace <username> in metadata.name before apply.
+# Pod requests 20 CPU and 200Gi (exceeds NRP default 16 CPU / 32Gi for bare pods).
+# To allow creation: request a namespace exception from NRP (Matrix https://nrp.ai/contact;
+# see https://nrp.ai/documentation/userdocs/start/policies/).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tutorial-<username>-qaic-inference
+  namespace: nrp-training-k8s
+spec:
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: nrp-training
+            operator: In
+            values: ["true"]
+  tolerations:
+  - key: nautilus.io/reservation
+    operator: Equal
+    value: nrp
+    effect: NoSchedule
+  volumes:
+  - name: scratch
+    emptyDir: {}
+  containers:
+  - name: qaic-inference
+    image: ghcr.io/quic/cloud_ai_inference_ubuntu24:1.20.6.0
+    resources:
+      limits:
+        memory: 200Gi
+        cpu: "20"
+        qualcomm.com/qaic: 1
+      requests:
+        memory: 200Gi
+        cpu: "20"
+        qualcomm.com/qaic: 1
+    command: ["sleep", "infinity"]
+    volumeMounts:
+    - name: scratch
+      mountPath: /scratch
