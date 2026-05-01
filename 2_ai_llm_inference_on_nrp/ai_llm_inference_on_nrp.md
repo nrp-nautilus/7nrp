@@ -6,6 +6,8 @@ This tutorial covers running AI and LLM inference workloads on NRP: using Jupyte
 
 YAMLs referenced here live in this directory's [`yamls/`](yamls) folder.
 
+> 📘 **Docs:** [Managed LLMs](https://nrp.ai/documentation/userdocs/ai/llm-managed/) · [Available models](https://nrp.ai/documentation/userdocs/ai/llm-managed/models/) · [LLM API access](https://nrp.ai/documentation/userdocs/ai/llm-managed/api-access/) · [LLM in JupyterHub](https://nrp.ai/documentation/userdocs/ai/llm-jupyterhub/) · [Vector DB (Milvus)](https://nrp.ai/documentation/userdocs/vector-database/) · [Qualcomm AI 100](https://nrp.ai/documentation/userdocs/qaic/) · [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/)
+
 ### NRP LLM API at a glance
 
 NRP serves open-weights LLMs behind an **OpenAI-compatible API** at `https://ellm.nrp-nautilus.io/v1`. You can try them in the browser via [Open WebUI](https://nrp-openwebui.nrp-nautilus.io) or [LibreChat](https://librechat.nrp-nautilus.io), or call the API with a token from the [LLM token page](https://nrp.ai/llmtoken). The [NRP LLM documentation](https://nrp.ai/documentation/userdocs/ai/llm-managed/) lists available models (e.g., glm-v, gpt-oss), context lengths, and tool-calling support.
@@ -461,6 +463,6 @@ kubectl delete -n nrp-training-k8s -f yamls/qaic-vllm-server.yaml --ignore-not-f
 - `helm uninstall` any H2O release you created.
 - Stop any `kubectl port-forward` processes you started.
 
-**Join NRP & hands-on support:** [Get started with NRP](https://nrp.ai/documentation/userdocs/start/getting-started/) · [Join NRP's Matrix chat](https://nrp.ai/contact/).
+**Need help?** [Full docs](https://nrp.ai/documentation/) · [Matrix chat](https://nrp.ai/contact/) · [FAQ](https://nrp.ai/documentation/userdocs/start/faq/) · [LLM token](https://nrp.ai/llmtoken)
 
-**Related documentation:** [NRP-managed LLMs](https://nrp.ai/documentation/userdocs/ai/llm-managed/) · [Qualcomm Cloud AI 100](https://nrp.ai/documentation/userdocs/qaic/) · [NRP-managed vector database (Milvus)](https://nrp.ai/documentation/userdocs/vector-database/).
+**Related docs:** [Managed LLMs](https://nrp.ai/documentation/userdocs/ai/llm-managed/) · [Models](https://nrp.ai/documentation/userdocs/ai/llm-managed/models/) · [LLM API](https://nrp.ai/documentation/userdocs/ai/llm-managed/api-access/) · [LLM in JupyterHub](https://nrp.ai/documentation/userdocs/ai/llm-jupyterhub/) · [Vector DB (Milvus)](https://nrp.ai/documentation/userdocs/vector-database/) · [Qualcomm AI 100](https://nrp.ai/documentation/userdocs/qaic/) · [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/) · [Sci images](https://nrp.ai/documentation/userdocs/running/sci-img/)

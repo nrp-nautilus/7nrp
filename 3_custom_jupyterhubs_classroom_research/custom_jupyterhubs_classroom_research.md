@@ -4,6 +4,8 @@ The primary access mechanism we support for classroom and research usage on NRP 
 
 YAMLs referenced in this tutorial live in this directory's [`yamls/`](yamls) folder.
 
+> 📘 **Docs:** [Deploy JupyterHub](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub/) · [JupyterHub service](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub-service/) · [Sci images](https://nrp.ai/documentation/userdocs/running/sci-img/) · [Build images](https://nrp.ai/documentation/userdocs/tutorial/images/) · [GitLab CI](https://nrp.ai/documentation/userdocs/development/gitlab/) · [Persistent storage](https://nrp.ai/documentation/userdocs/storage/ceph/) · [Z2JH (upstream)](https://z2jh.jupyter.org)
+
 ## Overview
 
 This tutorial covers how to deploy and manage JupyterHub environments for groups, courses, or research labs on NRP.
@@ -574,6 +576,6 @@ User PVCs are kept by default. Only delete them if you are sure you no longer ne
 kubectl delete pvc -n <namespace> -l app=jupyterhub,component=singleuser-storage
 ```
 
-**Join NRP & hands-on support:** [Get started with NRP](https://nrp.ai/documentation/userdocs/start/getting-started/) · [Join NRP's Matrix chat](https://nrp.ai/contact/).
+**Need help?** [Full docs](https://nrp.ai/documentation/) · [Matrix chat](https://nrp.ai/contact/) · [FAQ](https://nrp.ai/documentation/userdocs/start/faq/) · [Live resources](https://nrp.ai/viz/resources/)
 
-**Related documentation:** [JupyterHub on NRP](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub/) · [Zero to JupyterHub on Kubernetes](https://z2jh.jupyter.org) · [NRP GitLab](https://nrp.ai/documentation/userdocs/development/gitlab/).
+**Related docs:** [Deploy JupyterHub](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub/) · [JupyterHub service](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub-service/) · [Sci images](https://nrp.ai/documentation/userdocs/running/sci-img/) · [Container fundamentals](https://nrp.ai/documentation/userdocs/tutorial/docker/) · [Build images](https://nrp.ai/documentation/userdocs/tutorial/images/) · [NRP GitLab CI](https://nrp.ai/documentation/userdocs/development/gitlab/) · [Persistent storage](https://nrp.ai/documentation/userdocs/storage/ceph/) · [Z2JH (upstream)](https://z2jh.jupyter.org)

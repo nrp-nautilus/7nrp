@@ -6,6 +6,8 @@ This tutorial covers using the National Research Platform (NRP) Kubernetes clust
 
 YAMLs referenced in this tutorial live in this directory's [`yamls/`](yamls) folder.
 
+> 📘 **Docs:** [Getting started](https://nrp.ai/documentation/userdocs/start/getting-started/) · [Kubernetes basics](https://nrp.ai/documentation/userdocs/tutorial/basic/) · [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/) · [Run jobs](https://nrp.ai/documentation/userdocs/running/jobs/) · [Storage](https://nrp.ai/documentation/userdocs/storage/intro/) · [JupyterHub](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub-service/) · [Live resources](https://nrp.ai/viz/resources/)
+
 ---
 
 ## Introduction to the National Research Platform (NRP)
@@ -48,7 +50,7 @@ The Nautilus cluster has been in continuous operation for **6 years**. Its contr
 
 NRP runs a [hosted JupyterHub](https://jupyterhub-west.nrp-nautilus.io) you can use with your institutional credentials (CILogon). After logging in, choose the hardware profile for your instance and start running notebooks — no Kubernetes required to begin.
 
-Your home directory (`/home/jovyan`) is a persistent volume, **5GB** by default; don't fill it up or your next Jupyter session may not start. You can request more space or use [CephFS](https://nrp.ai/documentation/userdocs/storage/ceph) for larger or shared workloads. The server will shut down about **1 hour** after your browser disconnects, so keep a tab open or use a stable connection if you need long-running work.
+Your home directory (`/home/jovyan`) is a persistent volume, **50GB** by default; don't fill it up or your next Jupyter session may not start. You can request more space or use [CephFS](https://nrp.ai/documentation/userdocs/storage/ceph) for larger or shared workloads. The server will shut down about **1 hour** after your browser disconnects, so keep a tab open or use a stable connection if you need long-running work.
 
 For available images and custom setups, see the [scientific images](https://nrp.ai/documentation/userdocs/running/sci-img/) guide and [TensorFlow with Jupyter](https://nrp.ai/documentation/userdocs/jupyter/jupyter-pod/). More detail: [JupyterHub service](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub-service/).
 
@@ -64,7 +66,48 @@ The majority of NRP users interact with the cluster using one of three methods:
 - via the **Coder** service: launch a browser-based VS Code environment connected to cluster resources for interactive development and execution.
 - via the NRP-deployed **JupyterHub**: start a JupyterLab notebook server on the cluster for interactive analysis, prototyping, and teaching workflows.
 
-In this tutorial we use two of these services: launch a JupyterHub server and, from its terminal, interact with Kubernetes directly using `kubectl`.
+In this tutorial we focus on `kubectl`. You have **two ways** to run it for the workshop — pick whichever fits how you like to work:
+
+### Option 1 — kubectl on your laptop
+
+Install `kubectl` locally, then drop in the workshop kubeconfig (which already has the `jupyterhub-sa` service-account token, the cluster CA, and `nrp-training-k8s` set as the default namespace).
+
+**Install `kubectl`:**
+
+- **macOS** (Homebrew): `brew install kubectl`
+- **Linux**:
+  ```bash
+  curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+  sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+  ```
+- **Windows** (PowerShell): `winget install -e --id Kubernetes.kubectl`
+
+Verify with `kubectl version --client`.
+
+**Use the workshop kubeconfig:**
+
+The repo ships a ready file at [`../files/nrp-training.kubeconfig`](../files/nrp-training.kubeconfig). Point `kubectl` at it:
+
+```bash
+# macOS / Linux — run from the repo root
+export KUBECONFIG="$(pwd)/files/nrp-training.kubeconfig"
+
+# Windows PowerShell — run from the repo root
+$env:KUBECONFIG = "$(Get-Location)\files\nrp-training.kubeconfig"
+```
+
+Then test:
+
+```bash
+kubectl auth whoami
+kubectl get pods -n nrp-training-k8s
+```
+
+The embedded token is valid for 30 days from when this kubeconfig was generated; after it expires, you'll get a `Unauthorized` error and should switch to the JupyterHub option below or contact NRP for your own credentials.
+
+### Option 2 — Use the training JupyterHub (zero install)
+
+The workshop hub at [https://training.nrp-nautilus.io](https://training.nrp-nautilus.io) is pre-configured: every spawned JupyterLab pod has `kubectl` installed and a kubeconfig wired to the same `jupyterhub-sa` identity. Open a terminal in JupyterLab and start running `kubectl` immediately — no install, no kubeconfig to manage. **Recommended for the workshop.**
 
 ---
 
@@ -464,6 +507,6 @@ kubectl delete mpijob <username>-mpi-pi-XXXXX --ignore-not-found
 kubectl delete mpijob <username>-mpi-tensorflow-XXXXX --ignore-not-found
 ```
 
-**Join NRP & hands-on support:** [Get started with NRP](https://nrp.ai/documentation/userdocs/start/getting-started/) · [Join NRP's Matrix chat](https://nrp.ai/contact/).
+**Need help?** [Full docs](https://nrp.ai/documentation/) · [Matrix chat](https://nrp.ai/contact/) · [FAQ](https://nrp.ai/documentation/userdocs/start/faq/) · [Policies](https://nrp.ai/documentation/userdocs/start/policies/)
 
-**Related documentation:** [Using Nautilus](https://nrp.ai/documentation/userdocs/start/using-nautilus/) · [JupyterHub service](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub-service/) · [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/) · [NRP policies](https://nrp.ai/documentation/userdocs/start/policies/).
+**Related docs:** [Using Nautilus](https://nrp.ai/documentation/userdocs/start/using-nautilus/) · [Kubernetes basics](https://nrp.ai/documentation/userdocs/tutorial/basic/) · [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/) · [Run jobs](https://nrp.ai/documentation/userdocs/running/jobs/) · [Storage](https://nrp.ai/documentation/userdocs/storage/intro/) · [JupyterHub service](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub-service/) · [Live resources](https://nrp.ai/viz/resources/)
