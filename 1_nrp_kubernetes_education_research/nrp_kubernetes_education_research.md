@@ -2,7 +2,9 @@
 
 This tutorial covers using the National Research Platform (NRP) Kubernetes cluster for education and research: logging in to the hosted JupyterHub, opening a terminal that talks to the cluster, exploring resources, and creating the Kubernetes objects researchers and educators reach for daily — Pods, PersistentVolumeClaims, multi-container (sidecar) Pods, ConfigMaps + Secrets, Deployments, Batch Jobs, an HTTPS-fronted Service via Ingress, and GPU pods. Along the way you'll learn `kubectl cp` / `port-forward` / `patch`, plus how scheduling primitives (node labels, affinity, taints, tolerations) let you steer pods onto the workshop's reserved GPU pool.
 
+<!--
 **Conventions:** Hands-on examples use the **`nrp-training-k8s`** namespace; create it with `kubectl create namespace nrp-training-k8s` if it does not already exist. In any YAML or command, replace **`<username>`** with your NRP or GitHub username to avoid name collisions.
+-->
 
 YAMLs referenced in this tutorial live in this directory's [`yamls/`](yamls) folder.
 
@@ -10,26 +12,26 @@ YAMLs referenced in this tutorial live in this directory's [`yamls/`](yamls) fol
 
 # Interacting with NRP
 
-![Top Uses](images/TopUse.png)
+![Top Uses](../images/TopUse.png)
 
 The majority of NRP users interact with the cluster using the following three methods.
-- via **Kubernetes**: Directly submit and manage containerized workloads (services and batch jobs) using Kubernetes APIs and tools like `kubectl`.
-- via the **Coder** service: Launch a browser-based VS Code environment connected to cluster resources for interactive development and execution.
-- via NRP deployed **Jupyterhub**: Start a JupyterLab notebook server on the cluster for interactive analysis, prototyping, and teaching workflows.
+- **Kubernetes**: Directly submit and manage containerized workloads (services and batch jobs) using Kubernetes APIs and tools like `kubectl`.
+- **Coder**: Launch a browser-based VS Code environment connected to cluster resources for interactive development and execution.
+- **Jupyterhub**: Start a JupyterLab notebook server on the cluster for interactive analysis, prototyping, and teaching workflows.
 
 Today, we will be using two of these services. We will launch a jupyterhub server. From the jupyterhub server, we will interact with kubernetes directly using the hub's terminal. 
 
-If you have not already done so, please use the following link to [Launch NAIRR Tutorial Workspace](https://training.nrp-nautilus.io/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fnrp-nautilus%2Fnairr-tutorial&branch=main&urlpath=lab%2Ftree%2Fnairr-tutorial%2F)
+If you have not already done so, please use the following link to [Launch the Tutorial Workspace](https://training.nrp-nautilus.io/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fnrp-nautilus%2F7nrp&branch=main&urlpath=lab%2Ftree%2F7nrp%2F)
 
 <div style="text-align:center;">
-  <img src="images/jhub-1.png" alt="resource-page" style="width:75%; max-width:580px; height:auto;" />
+  <img src="../images/jhub-1.png" alt="resource-page" style="width:75%; max-width:580px; height:auto;" />
 </div>
 
 - When you launch your notebook, you should see a screen like this.
 - Let's set up our workspace to view these instructions and the terminal. 
 
 <div style="text-align:center;">
-  <img src="images/jhub-2.png" alt="resource-page" style="width:75%; max-width:580px; height:auto;" />
+  <img src="../images/jhub-2.png" alt="resource-page" style="width:75%; max-width:580px; height:auto;" />
 </div>
 
 
