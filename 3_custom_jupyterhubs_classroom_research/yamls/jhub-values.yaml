@@ -23,7 +23,7 @@ hub:
       accessModes:
         - ReadWriteOnce
       storage: 1Gi
-      storageClassName: rook-ceph-block
+      storageClassName: rook-ceph-block-east
   resources:
     limits:
       cpu: "2"
@@ -72,7 +72,7 @@ singleuser:
     capacity: 5Gi
     homeMountPath: /home/jovyan
     dynamic:
-      storageClass: rook-ceph-block
+      storageClass: rook-ceph-block-east
       pvcNameTemplate: claim-{username}{servername}
       volumeNameTemplate: volume-{username}{servername}
       storageAccessModes: [ReadWriteOnce]

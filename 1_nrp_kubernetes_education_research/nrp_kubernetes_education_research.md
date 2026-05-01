@@ -1,10 +1,10 @@
-# Part 1: Kubernetes on the National Research Platform
+# NRP and Kubernetes for Education and Research
 
-This part covers using the National Research Platform (NRP) Kubernetes cluster: logging in to the hosted JupyterHub, opening a terminal that talks to the cluster, exploring resources, and creating Kubernetes objects (pods, GPU pods, MPI jobs).
+This tutorial covers using the National Research Platform (NRP) Kubernetes cluster for education and research: logging in to the hosted JupyterHub, opening a terminal that talks to the cluster, exploring resources, and creating Kubernetes objects (pods, GPU pods, MPI jobs).
 
 **Conventions:** Hands-on examples use the **`nrp-training-k8s`** namespace; create it with `kubectl create namespace nrp-training-k8s` if it does not already exist. In any YAML or command, replace **`<username>`** with your NRP or GitHub username to avoid name collisions.
 
-YAMLs referenced in this part live in this directory's [`yamls/`](yamls) folder.
+YAMLs referenced in this tutorial live in this directory's [`yamls/`](yamls) folder.
 
 ---
 

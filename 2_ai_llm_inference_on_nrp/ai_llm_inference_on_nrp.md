@@ -1,6 +1,6 @@
-# Part 2: AI, ML, and LLM Workloads on NRP
+# Using AI and LLM Inference on NRP (Jupyter AI, Agents, RAG)
 
-This part covers running AI/ML/LLM workloads on NRP: deploying inference models on NVIDIA A10 GPUs and Qualcomm Cloud AI 100 Ultra cards, and building a RAG pipeline with the NRP-managed Milvus vector database.
+This tutorial covers running AI and LLM inference workloads on NRP: using JupyterAI inside notebooks, deploying inference models on NVIDIA A10 GPUs and Qualcomm Cloud AI 100 Ultra cards, and building a RAG pipeline with the NRP-managed Milvus vector database.
 
 **Conventions:** Hands-on examples use the **`nrp-training-k8s`** namespace; create it with `kubectl create namespace nrp-training-k8s` if it does not already exist. In any YAML or command, replace **`<username>`** with your NRP or GitHub username to avoid name collisions.
 

@@ -1,12 +1,12 @@
-# Part 3: Custom Hosted JupyterHubs and Helm
+# Setting Up Custom JupyterHubs for Classroom and Research
 
-The primary access mechanism we support for NAIRR Pilot Classroom usage on NRP is via JupyterHub. In this part we cover how instructors and TAs can deploy custom JupyterHub instances. Topics include controlled access, custom software stacks/containers, and resource scaling — all driven by Helm.
+The primary access mechanism we support for classroom and research usage on NRP is via JupyterHub. This tutorial covers how instructors, TAs, and PIs can deploy custom JupyterHub instances. Topics include controlled access, custom software stacks/containers, and resource scaling — all driven by Helm.
 
-YAMLs referenced in this part live in this directory's [`yamls/`](yamls) folder.
+YAMLs referenced in this tutorial live in this directory's [`yamls/`](yamls) folder.
 
 ## Overview
 
-This part covers how to deploy and manage JupyterHub environments for groups or courses on NRP.
+This tutorial covers how to deploy and manage JupyterHub environments for groups, courses, or research labs on NRP.
 
 ## Key concepts
 
@@ -119,7 +119,7 @@ hub:
     pvc:
       accessModes: [ReadWriteOnce]
       storage: 1Gi
-      storageClassName: rook-ceph-block
+      storageClassName: rook-ceph-block-east
   resources:
     limits: {cpu: "2", memory: 1Gi}
     requests: {cpu: 100m, memory: 512Mi}
@@ -136,7 +136,7 @@ singleuser:
     capacity: 5Gi
     homeMountPath: /home/jovyan
     dynamic:
-      storageClass: rook-ceph-block
+      storageClass: rook-ceph-block-east
       pvcNameTemplate: claim-{username}{servername}
       volumeNameTemplate: volume-{username}{servername}
       storageAccessModes: [ReadWriteOnce]
@@ -242,8 +242,8 @@ proxy-public   ClusterIP   10.110.183.21   <none>        80/TCP     5m1s
 ```
 ```text
 NAME          STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS      AGE
-claim-admin   Bound    pvc-9acc9f4d-2681-419a-963b-cb27ade541b6   5Gi        RWO            rook-ceph-block   14m
-hub-db-dir    Bound    pvc-24ed6711-d5fc-4216-9689-f233b57818e5   1Gi        RWO            rook-ceph-block   42m
+claim-admin   Bound    pvc-9acc9f4d-2681-419a-963b-cb27ade541b6   5Gi        RWO            rook-ceph-block-east   14m
+hub-db-dir    Bound    pvc-24ed6711-d5fc-4216-9689-f233b57818e5   1Gi        RWO            rook-ceph-block-east   42m
 ```
 </details>
 
@@ -386,7 +386,7 @@ singleuser:
     capacity: 5Gi
     homeMountPath: /home/jovyan
     dynamic:
-      storageClass: rook-ceph-block
+      storageClass: rook-ceph-block-east
       pvcNameTemplate: claim-{username}{servername}
       volumeNameTemplate: volume-{username}{servername}
       storageAccessModes: [ReadOnlyMany]
