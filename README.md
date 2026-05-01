@@ -34,23 +34,23 @@ Click to clone this repo into your pre-authenticated JupyterLab on the workshop 
 
 ## Tutorials
 
-The three tutorials are independent — pick the one that matches what you want to learn, or work through them in order.
+The three tutorials are independent — pick the one that matches what you want to learn, or work through them in order. Click anywhere on a card (number, title, path, or technology badge) to open the tutorial.
 
-### ![1](https://img.shields.io/badge/1-00529B?style=flat-square) NRP and Kubernetes for Education and Research
+### [![1](https://img.shields.io/badge/1-00529B?style=flat-square) NRP and Kubernetes for Education and Research](1_nrp_kubernetes_education_research/nrp_kubernetes_education_research.md)
 
-[`1_nrp_kubernetes_education_research/`](1_nrp_kubernetes_education_research/nrp_kubernetes_education_research.md) &nbsp; ![kubectl](https://img.shields.io/badge/kubectl-326CE5?style=flat-square&logo=kubernetes&logoColor=white) ![GPU](https://img.shields.io/badge/NVIDIA%20GPU-76B900?style=flat-square&logo=nvidia&logoColor=white) ![MPI](https://img.shields.io/badge/MPI-0A2540?style=flat-square)
+[`1_nrp_kubernetes_education_research/`](1_nrp_kubernetes_education_research/nrp_kubernetes_education_research.md) &nbsp; [![kubectl](https://img.shields.io/badge/kubectl-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](1_nrp_kubernetes_education_research/nrp_kubernetes_education_research.md) [![NVIDIA GPU](https://img.shields.io/badge/NVIDIA%20GPU-76B900?style=flat-square&logo=nvidia&logoColor=white)](1_nrp_kubernetes_education_research/nrp_kubernetes_education_research.md) [![MPI](https://img.shields.io/badge/MPI-0A2540?style=flat-square)](1_nrp_kubernetes_education_research/nrp_kubernetes_education_research.md)
 
 Get oriented on the Nautilus cluster, log in to the hosted JupyterHub, and learn `kubectl` basics through hands-on pod creation, GPU pods, and MPI jobs (MPI-pi and a TensorFlow + Horovod benchmark).
 
-### ![2](https://img.shields.io/badge/2-0091CD?style=flat-square) Using AI and LLM Inference on NRP (Jupyter AI, Agents, RAG)
+### [![2](https://img.shields.io/badge/2-0091CD?style=flat-square) Using AI and LLM Inference on NRP (Jupyter AI, Agents, RAG)](2_ai_llm_inference_on_nrp/ai_llm_inference_on_nrp.md)
 
-[`2_ai_llm_inference_on_nrp/`](2_ai_llm_inference_on_nrp/ai_llm_inference_on_nrp.md) &nbsp; ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white) ![Ollama](https://img.shields.io/badge/Ollama-0A2540?style=flat-square) ![Milvus](https://img.shields.io/badge/Milvus-00A1EA?style=flat-square) ![Qualcomm](https://img.shields.io/badge/Qualcomm%20Cloud%20AI%20100-3253DC?style=flat-square)
+[`2_ai_llm_inference_on_nrp/`](2_ai_llm_inference_on_nrp/ai_llm_inference_on_nrp.md) &nbsp; [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](2_ai_llm_inference_on_nrp/ai_llm_inference_on_nrp.md) [![Ollama](https://img.shields.io/badge/Ollama-0A2540?style=flat-square)](2_ai_llm_inference_on_nrp/ai_llm_inference_on_nrp.md) [![Milvus](https://img.shields.io/badge/Milvus-00A1EA?style=flat-square)](2_ai_llm_inference_on_nrp/ai_llm_inference_on_nrp.md) [![Qualcomm](https://img.shields.io/badge/Qualcomm%20Cloud%20AI%20100-3253DC?style=flat-square)](2_ai_llm_inference_on_nrp/ai_llm_inference_on_nrp.md)
 
 Run AI and LLM inference workloads on NRP: PyTorch GPU sanity check, Text Generation Inference, Ollama-based RAG, a Helm-deployed H2O LLM service, Qualcomm Cloud AI 100 Ultra inference (via JupyterHub profile and via `kubectl`), and a multi-tenant Milvus RAG pipeline that runs the LLM step on either NVIDIA or Qualcomm.
 
-### ![3](https://img.shields.io/badge/3-0FB1A8?style=flat-square) Setting Up Custom JupyterHubs for Classroom and Research
+### [![3](https://img.shields.io/badge/3-0FB1A8?style=flat-square) Setting Up Custom JupyterHubs for Classroom and Research](3_custom_jupyterhubs_classroom_research/custom_jupyterhubs_classroom_research.md)
 
-[`3_custom_jupyterhubs_classroom_research/`](3_custom_jupyterhubs_classroom_research/custom_jupyterhubs_classroom_research.md) &nbsp; ![Helm](https://img.shields.io/badge/Helm-0F1689?style=flat-square&logo=helm&logoColor=white) ![JupyterHub](https://img.shields.io/badge/JupyterHub-F37726?style=flat-square&logo=jupyter&logoColor=white) ![GitLab%20CI](https://img.shields.io/badge/GitLab%20CI-FC6D26?style=flat-square&logo=gitlab&logoColor=white)
+[`3_custom_jupyterhubs_classroom_research/`](3_custom_jupyterhubs_classroom_research/custom_jupyterhubs_classroom_research.md) &nbsp; [![Helm](https://img.shields.io/badge/Helm-0F1689?style=flat-square&logo=helm&logoColor=white)](3_custom_jupyterhubs_classroom_research/custom_jupyterhubs_classroom_research.md) [![JupyterHub](https://img.shields.io/badge/JupyterHub-F37726?style=flat-square&logo=jupyter&logoColor=white)](3_custom_jupyterhubs_classroom_research/custom_jupyterhubs_classroom_research.md) [![GitLab CI](https://img.shields.io/badge/GitLab%20CI-FC6D26?style=flat-square&logo=gitlab&logoColor=white)](3_custom_jupyterhubs_classroom_research/custom_jupyterhubs_classroom_research.md)
 
 Deploy your own JupyterHub for a course or research group: install Helm, add the JupyterHub Helm chart, configure Ingress, set up multiple image profiles and per-profile resource limits, attach shared storage, and learn how to build custom container images via NRP GitLab CI/CD.
 
