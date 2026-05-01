@@ -8,6 +8,31 @@ YAMLs referenced in this tutorial live in this directory's [`yamls/`](yamls) fol
 
 > 📘 **Docs:** [Getting started](https://nrp.ai/documentation/userdocs/start/getting-started/) · [Kubernetes basics](https://nrp.ai/documentation/userdocs/tutorial/basic/) · [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/) · [Run jobs](https://nrp.ai/documentation/userdocs/running/jobs/) · [Storage](https://nrp.ai/documentation/userdocs/storage/intro/) · [JupyterHub](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub-service/) · [Live resources](https://nrp.ai/viz/resources/)
 
+# Interacting with NRP
+
+![Top Uses](images/TopUse.png)
+
+The majority of NRP users interact with the cluster using the following three methods.
+- via **Kubernetes**: Directly submit and manage containerized workloads (services and batch jobs) using Kubernetes APIs and tools like `kubectl`.
+- via the **Coder** service: Launch a browser-based VS Code environment connected to cluster resources for interactive development and execution.
+- via NRP deployed **Jupyterhub**: Start a JupyterLab notebook server on the cluster for interactive analysis, prototyping, and teaching workflows.
+
+Today, we will be using two of these services. We will launch a jupyterhub server. From the jupyterhub server, we will interact with kubernetes directly using the hub's terminal. 
+
+If you have not already done so, please use the following link to [Launch NAIRR Tutorial Workspace](https://training.nrp-nautilus.io/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fnrp-nautilus%2Fnairr-tutorial&branch=main&urlpath=lab%2Ftree%2Fnairr-tutorial%2F)
+
+<div style="text-align:center;">
+  <img src="images/jhub-1.png" alt="resource-page" style="width:75%; max-width:580px; height:auto;" />
+</div>
+
+- When you launch your notebook, you should see a screen like this.
+- Let's set up our workspace to view these instructions and the terminal. 
+
+<div style="text-align:center;">
+  <img src="images/jhub-2.png" alt="resource-page" style="width:75%; max-width:580px; height:auto;" />
+</div>
+
+
 ---
 
 ## Introduction to the National Research Platform (NRP)
