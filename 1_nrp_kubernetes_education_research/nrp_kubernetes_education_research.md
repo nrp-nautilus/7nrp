@@ -74,40 +74,37 @@ The workshop hub at [https://training.nrp-nautilus.io](https://training.nrp-naut
 
 ### Option 2 — kubectl on your laptop
 
-Install `kubectl` locally, then drop in the workshop kubeconfig (which already has the `jupyterhub-sa` service-account token, the cluster CA, and `nrp-training-k8s` set as the default namespace).
+Use this if you prefer your own terminal. The repo ships a ready kubeconfig at [`../files/nrp-training.kubeconfig`](../files/nrp-training.kubeconfig) — it carries the `jupyterhub-sa` service-account token, the cluster CA, and `nrp-training-k8s` as the default namespace. The embedded token is valid for the duration of 7NRP, through end-of-day Thursday, May 7, 2026. **This is how to get the kubeconfig for the tutorial.**
 
-**Install `kubectl`:**
-
-- **macOS** (Homebrew): `brew install kubectl`
-- **Linux**:
-  ```bash
-  curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-  sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-  ```
-- **Windows** (PowerShell): `winget install -e --id Kubernetes.kubectl`
-
-Verify with `kubectl version --client`.
-
-**Use the workshop kubeconfig:**
-
-The repo ships a ready file at [`../files/nrp-training.kubeconfig`](../files/nrp-training.kubeconfig). Point `kubectl` at it:
+**macOS / Linux — single command (installs `kubectl`, installs `helm`, points at the workshop kubeconfig).** Run this from the `7nrp/` directory of your local checkout:
 
 ```bash
-# macOS / Linux — run from the repo root
-export KUBECONFIG="$(pwd)/files/nrp-training.kubeconfig"
+OS=$(uname | tr '[:upper:]' '[:lower:]') \
+&& ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') \
+&& curl -fsSLo /tmp/kubectl "https://dl.k8s.io/release/v1.33.0/bin/${OS}/${ARCH}/kubectl" \
+&& sudo install -m 0755 /tmp/kubectl /usr/local/bin/kubectl \
+&& curl -fsSL "https://get.helm.sh/helm-v3.16.4-${OS}-${ARCH}.tar.gz" | tar -xz -C /tmp/ \
+&& sudo install -m 0755 "/tmp/${OS}-${ARCH}/helm" /usr/local/bin/helm \
+&& rm -rf /tmp/kubectl "/tmp/${OS}-${ARCH}" \
+&& export KUBECONFIG="$(pwd)/files/nrp-training.kubeconfig" \
+&& kubectl auth whoami && helm version --short
+```
 
-# Windows PowerShell — run from the repo root
+`KUBECONFIG` is exported in your current shell only. To make it permanent, append the same `export KUBECONFIG="…/files/nrp-training.kubeconfig"` line to `~/.bashrc` or `~/.zshrc`.
+
+**Windows (PowerShell) — equivalent steps.** Run these one at a time from the `7nrp\` directory of your local checkout:
+
+```powershell
+winget install -e --id Kubernetes.kubectl
+winget install -e --id Helm.Helm
 $env:KUBECONFIG = "$(Get-Location)\files\nrp-training.kubeconfig"
-```
-
-Then test:
-
-```bash
 kubectl auth whoami
-kubectl get pods -n nrp-training-k8s
+helm version --short
 ```
 
-The embedded token is valid for the duration of 7NRP — through end-of-day Thursday, May 7, 2026. After the workshop ends, switch to the JupyterHub option above or contact NRP for your own credentials.
+To persist `KUBECONFIG` across sessions, add the `$env:KUBECONFIG = …` line to your PowerShell profile (`$PROFILE`).
+
+> **After the workshop ends:** this kubeconfig stops working. For ongoing NRP Nautilus access, configure `kubelogin` to use your personal **CILogon** identity instead of this temporary service account. Follow the official getting-started guide: <https://nrp.ai/documentation/userdocs/start/getting-started/>.
 
 ---
 

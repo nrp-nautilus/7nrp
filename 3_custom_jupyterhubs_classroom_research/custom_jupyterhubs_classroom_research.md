@@ -20,38 +20,52 @@ This tutorial covers how to deploy and manage JupyterHub environments for groups
 
 ---
 
-# 1. Install Helm
+# 1. Install Helm and kubectl
 
-Helm is a package manager for Kubernetes. It helps you install and manage complex applications without writing every Kubernetes file by hand. Instead of manually creating many YAML manifests for things like deployments, services, and configuration, you use a Helm chart, which is a reusable bundle of templates and settings.
+Helm is a package manager for Kubernetes — instead of authoring every Deployment, Service, and ConfigMap by hand, you install a chart (a reusable bundle of templates) and tune it through a values file. We'll use Helm to install JupyterHub from the official chart.
 
-First, check if Helm is installed:
+If you're working inside the [training JupyterHub](https://training.nrp-nautilus.io/), `kubectl`, `helm`, and the kubeconfig are already wired up in your terminal — open a terminal in JupyterLab, run `kubectl auth whoami && helm version --short` to confirm, then skip ahead to [section 2](#2-add-the-jupyterhub-helm-repository).
 
-```bash
-helm version
-```
+If you're running locally, install both tools and point them at the workshop kubeconfig. The kubeconfig file ships in this repo at [`../files/nrp-training.kubeconfig`](../files/nrp-training.kubeconfig) and carries the `jupyterhub-sa` service-account token plus the cluster CA. **This is how to get the kubeconfig for the tutorial.**
 
-If not installed, run:
+**macOS / Linux — single command (installs `kubectl`, installs `helm`, points at the workshop kubeconfig).** Run this from the `7nrp/` directory of your local checkout:
 
 ```bash
-curl -sSL https://get.helm.sh/helm-v3.14.2-linux-amd64.tar.gz | tar xz \
-  && mv linux-amd64/helm ./helm \
-  && chmod +x ./helm \
-  && ./helm version \
-  && export PATH="$PWD:$PATH" \
-  && bash \
-  && helm version
+OS=$(uname | tr '[:upper:]' '[:lower:]') \
+&& ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') \
+&& curl -fsSLo /tmp/kubectl "https://dl.k8s.io/release/v1.33.0/bin/${OS}/${ARCH}/kubectl" \
+&& sudo install -m 0755 /tmp/kubectl /usr/local/bin/kubectl \
+&& curl -fsSL "https://get.helm.sh/helm-v3.16.4-${OS}-${ARCH}.tar.gz" | tar -xz -C /tmp/ \
+&& sudo install -m 0755 "/tmp/${OS}-${ARCH}/helm" /usr/local/bin/helm \
+&& rm -rf /tmp/kubectl "/tmp/${OS}-${ARCH}" \
+&& export KUBECONFIG="$(pwd)/files/nrp-training.kubeconfig" \
+&& kubectl auth whoami && helm version --short
 ```
+
+`KUBECONFIG` is exported in your current shell only. To make it permanent, append the same `export KUBECONFIG="…/files/nrp-training.kubeconfig"` line to `~/.bashrc` or `~/.zshrc`.
+
+**Windows (PowerShell) — equivalent steps.** Run these one at a time from the `7nrp\` directory of your local checkout:
+
+```powershell
+winget install -e --id Kubernetes.kubectl
+winget install -e --id Helm.Helm
+$env:KUBECONFIG = "$(Get-Location)\files\nrp-training.kubeconfig"
+kubectl auth whoami
+helm version --short
+```
+
+To persist `KUBECONFIG` across sessions, add the `$env:KUBECONFIG = …` line to your PowerShell profile (`$PROFILE`).
 
 <details>
   <summary>Click to reveal expected output</summary>
 
-```bash
-helm version
-```
-```
-version.BuildInfo{Version:"v3.20.0", GitCommit:"b2e4314fa0f229a1de7b4c981273f61d69ee5a59", GitTreeState:"clean", GoVersion:"go1.25.6"}
+```text
+Username:   system:serviceaccount:nrp-training:jupyterhub-sa
+v3.16.4+g7877b45
 ```
 </details>
+
+> **After the workshop ends:** this kubeconfig stops working. For ongoing NRP Nautilus access, configure `kubelogin` to use your personal **CILogon** identity instead of this temporary service account. Follow the official getting-started guide: <https://nrp.ai/documentation/userdocs/start/getting-started/>.
 
 ---
 
