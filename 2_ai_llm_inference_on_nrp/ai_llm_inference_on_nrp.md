@@ -412,7 +412,93 @@ cd /scratch
 python3 milvus-example.py
 ```
 
-## C.2 Milvus RAG with the LLM on Qualcomm
+## C.2 RAG over the NRP documentation
+
+A more practical RAG demo: ingest [https://nrp.ai/documentation/](https://nrp.ai/documentation/) into Milvus and answer policy and how-to questions about NRP itself ("is it okay to `sleep infinity` in a Job?", "how do I expose a web service over HTTPS?", "how do I get a Milvus password?").
+
+The script lives at [`yamls/nrp_docs_rag.py`](yamls/nrp_docs_rag.py). It:
+
+1. **Sparse-clones** the public [`nrp-site`](https://gitlab.nrp-nautilus.io/prp/nrp-site/-/tree/main/src/content/docs/Documentation) GitLab repo (only `src/content/docs/Documentation`). This is the source-of-truth Markdown that powers `https://nrp.ai/documentation/`.
+2. Reads every `.md` / `.mdx` file (~140), strips YAML frontmatter and Astro `import …` lines, and rebuilds a citable `https://nrp.ai/documentation/...` URL from each filesystem path.
+3. Chunks the text and embeds with `sentence-transformers/all-MiniLM-L6-v2` (CPU-friendly, 384-dim).
+4. Stores everything in a Milvus collection called `nrp_docs_rag` (override with `RAG_COLLECTION=<name>`).
+5. Runs a built-in question set through the LLM, answering **only from retrieved context** and citing the source URL(s).
+
+Cloning the source markdown beats web-scraping for this workshop: it's faster (no per-page HTTP), the content has no rendered chrome, and refreshing the corpus is a `git pull` away.
+
+**LLM backend.** The script auto-selects:
+
+- The **NRP managed LLM** (OpenAI-compatible) when `OPENAI_API_BASE` points to `https://ellm.nrp-nautilus.io/v1`. JupyterHub spawns already export this and `OPENAI_API_KEY`, so no extra setup is needed inside a JupyterLab terminal.
+- A **local Ollama mistral** server otherwise (the default in the `tutorial-<username>-vectordb` pod from C.1).
+
+You can override the model with `RAG_MODEL=<name>`. Default is `gemma` for the managed LLM (deterministic, returns content directly) and `mistral` for Ollama.
+
+**Run it from inside the C.1 pod** (Ollama backend, no JupyterHub needed):
+
+```bash
+kubectl exec -it -n nrp-training-k8s tutorial-<username>-vectordb -- bash -c '
+  apt-get install -y -qq git &&
+  cd /scratch &&
+  curl -fsSLO https://raw.githubusercontent.com/nrp-nautilus/7nrp/main/2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py &&
+  python3 nrp_docs_rag.py --reindex'
+```
+
+**Or run it from a JupyterHub terminal** (managed LLM backend, lighter weight — no GPU pod needed). Open a terminal in your JupyterLab session, then:
+
+```bash
+pip install -q pymilvus sentence-transformers langchain-text-splitters
+export MILVUS_HOST=milvus.nrp-nautilus.io \
+       MILVUS_PORT=50051 \
+       MILVUS_USER=<your-milvus-user> \
+       MILVUS_PASSWORD=<your-milvus-password> \
+       MILVUS_SECURE=true \
+       MILVUS_DB_NAME=<your-milvus-db>
+# OPENAI_API_BASE / OPENAI_API_KEY are already exported by the hub.
+python 2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py --reindex
+```
+
+The first run does a full clone + embed + index (`--reindex` drops any prior `nrp_docs_rag` collection and rebuilds it; if your Milvus role doesn't have `DropCollection`, set `RAG_COLLECTION=<unique-name>` instead). Subsequent runs skip ingest and just answer questions; pass `--reindex` again to refresh from the latest commit on the docs repo, or `--limit N` to cap how many `.md` files are read for a quick demo. Use `--repo-dir <path>` (or `RAG_REPO_DIR`) to control where the clone lives — default is `/tmp/nrp-site`.
+
+**Built-in questions** cover the workshop-relevant topics (Milvus password, GPU policy, storage classes, identity / kubelogin, GitLab CI, resource limits). Add your own with `--ask "..."` (repeatable), and pass `--only-ask` to skip the built-in set entirely:
+
+```bash
+python 2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py --only-ask \
+    --ask "Is it okay to sleep infinity in a Job? Quote the policy." \
+    --ask "How do I expose a web service over HTTPS on NRP?"
+```
+
+**Expected output (real run, full 137-file corpus, ~86s end-to-end including clone):**
+
+```
+Q: Is it okay to sleep infinity in a Kubernetes job? Quote the relevant NRP policy.
+------------------------------------------------------------------------------
+No, it is not okay. The relevant NRP policy states: "Using `sleep infinity` in
+Jobs is not allowed. Users running a Job with `sleep infinity` command or
+equivalent (script ending with 'sleep') will be banned from using the cluster."
+URL: https://nrp.ai/documentation/userdocs/start/policies
+
+Sources used:
+  - https://nrp.ai/documentation/userdocs/start/policies     (score=0.555)
+  - https://nrp.ai/documentation/userdocs/start/using-nautilus  (score=0.527)
+```
+
+```
+Q: How do I expose a web service over HTTPS on NRP?
+------------------------------------------------------------------------------
+Create an Ingress with ingressClassName: haproxy, a host like
+<whatever>.nrp-nautilus.io, a backend pointing at your Service, and a tls:
+section listing the host. SSL termination is provided automatically for
+.nrp-nautilus.io subdomains. For your own domain, add a kubernetes.io/tls
+secret and CNAME to nrp-nautilus.io (or east.nrp-nautilus.io).
+
+Sources:
+  - https://nrp.ai/documentation/userdocs/running/ingress      (score=0.503)
+  - https://nrp.ai/documentation/userdocs/tutorial/basic2      (score=0.472)
+```
+
+If a question doesn't match anything in the corpus the model will say "the provided context does not contain..." instead of hallucinating — that's the point of RAG.
+
+## C.3 Milvus RAG with the LLM on Qualcomm
 
 You can run the same RAG pipeline with the **LLM on Qualcomm Cloud AI 100 Ultra**: embeddings and Milvus stay on the existing pod; only the generative step uses a vLLM server running on QAIC.
 
@@ -447,13 +533,26 @@ kubectl exec -it -n nrp-training-k8s tutorial-<username>-vectordb -- bash -c '
 
 The script uses the same Milvus credentials and collection; only the generative step uses the Qualcomm vLLM server.
 
-## C.3 Milvus cleanup
+## C.4 Milvus cleanup
 
-Delete the Milvus RAG pod and, if used, the QAIC vLLM server:
+Delete the Milvus RAG pod and, if used, the QAIC vLLM server. To free your Milvus database quota you can also drop the demo collections:
 
 ```bash
 kubectl delete -n nrp-training-k8s -f yamls/milvus-rag.yaml --ignore-not-found
 kubectl delete -n nrp-training-k8s -f yamls/qaic-vllm-server.yaml --ignore-not-found
+
+# Optional: drop the demo collections from Milvus
+python3 - <<'PY'
+import os
+from pymilvus import connections, utility
+connections.connect(host=os.environ["MILVUS_HOST"], port=os.environ["MILVUS_PORT"],
+                    user=os.environ["MILVUS_USER"], password=os.environ["MILVUS_PASSWORD"],
+                    secure=os.environ.get("MILVUS_SECURE","true").lower()=="true",
+                    db_name=os.environ["MILVUS_DB_NAME"])
+for c in ("simple_rag_example", "nrp_docs_rag"):
+    if utility.has_collection(c):
+        utility.drop_collection(c); print("dropped", c)
+PY
 ```
 
 
