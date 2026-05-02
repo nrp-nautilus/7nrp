@@ -24,11 +24,11 @@ Three independent hands-on tutorials for the National Research Platform. Each tu
 
 Two ways to follow along during the workshop:
 
-**Option 1 — kubectl on your laptop.** Install `kubectl` (Linux / macOS / Windows) and use the ready kubeconfig at [`files/nrp-training.kubeconfig`](files/nrp-training.kubeconfig). It carries the `jupyterhub-sa` service-account token, cluster CA, and `nrp-training-k8s` as the default namespace; the embedded token is valid for 30 days. Step-by-step instructions live in [Tutorial 1 → Interacting with NRP](1_nrp_kubernetes_education_research/nrp_kubernetes_education_research.md#interacting-with-nrp).
-
-**Option 2 — Training JupyterHub (recommended, zero install).** The workshop hub at [training.nrp-nautilus.io](https://training.nrp-nautilus.io/) is pre-configured: every spawned JupyterLab pod already has `kubectl` installed and a kubeconfig wired up to the same identity, so you can open a terminal and run `kubectl` immediately. Click below to clone this repo straight into your JupyterLab session:
+**Option 1 — Training JupyterHub (recommended, zero install).** The workshop hub at [training.nrp-nautilus.io](https://training.nrp-nautilus.io/) is pre-configured: every spawned JupyterLab pod already has `kubectl` installed and a kubeconfig wired up to the same identity, so you can open a terminal and run `kubectl` immediately. Click below to clone this repo straight into your JupyterLab session:
 
 [![Launch 7NRP Tutorial Workspace](https://img.shields.io/badge/Launch-7NRP%20Tutorial%20Workspace%20%E2%86%92-00529B?style=for-the-badge&logo=jupyter&logoColor=white)](https://training.nrp-nautilus.io/hub/user-redirect/git-pull?repo=https%3A%2F%2Fgithub.com%2Fnrp-nautilus%2F7nrp&branch=main&urlpath=lab%2Ftree%2F7nrp%2F)
+
+**Option 2 — kubectl on your laptop.** Install `kubectl` (Linux / macOS / Windows) and use the ready kubeconfig at [`files/nrp-training.kubeconfig`](files/nrp-training.kubeconfig). It carries the `jupyterhub-sa` service-account token, cluster CA, and `nrp-training-k8s` as the default namespace; the embedded token is valid for the duration of 7NRP, through end-of-day Thursday, May 7, 2026. Step-by-step instructions live in [Tutorial 1 → Interacting with NRP](1_nrp_kubernetes_education_research/nrp_kubernetes_education_research.md#interacting-with-nrp).
 
 **Conventions**
 - Tutorials 1 and 2 share the **`nrp-training-k8s`** namespace. It already exists for the workshop; if you need to recreate it later: `kubectl create namespace nrp-training-k8s`.

@@ -68,7 +68,11 @@ The majority of NRP users interact with the cluster using one of three methods:
 
 In this tutorial we focus on `kubectl`. You have **two ways** to run it for the workshop — pick whichever fits how you like to work:
 
-### Option 1 — kubectl on your laptop
+### Option 1 — Use the training JupyterHub (zero install, recommended)
+
+The workshop hub at [https://training.nrp-nautilus.io](https://training.nrp-nautilus.io) is pre-configured: every spawned JupyterLab pod has `kubectl` installed and a kubeconfig wired to the same `jupyterhub-sa` identity. Open a terminal in JupyterLab and start running `kubectl` immediately — no install, no kubeconfig to manage. **Recommended for the workshop.**
+
+### Option 2 — kubectl on your laptop
 
 Install `kubectl` locally, then drop in the workshop kubeconfig (which already has the `jupyterhub-sa` service-account token, the cluster CA, and `nrp-training-k8s` set as the default namespace).
 
@@ -103,11 +107,7 @@ kubectl auth whoami
 kubectl get pods -n nrp-training-k8s
 ```
 
-The embedded token is valid for 30 days from when this kubeconfig was generated; after it expires, you'll get a `Unauthorized` error and should switch to the JupyterHub option below or contact NRP for your own credentials.
-
-### Option 2 — Use the training JupyterHub (zero install)
-
-The workshop hub at [https://training.nrp-nautilus.io](https://training.nrp-nautilus.io) is pre-configured: every spawned JupyterLab pod has `kubectl` installed and a kubeconfig wired to the same `jupyterhub-sa` identity. Open a terminal in JupyterLab and start running `kubectl` immediately — no install, no kubeconfig to manage. **Recommended for the workshop.**
+The embedded token is valid for the duration of 7NRP — through end-of-day Thursday, May 7, 2026. After the workshop ends, switch to the JupyterHub option above or contact NRP for your own credentials.
 
 ---
 
