@@ -1,4 +1,5 @@
-# MPIJob for Part 2. Replace <username> in name before kubectl apply (generateName cannot be used with apply).
+# MPIJob: distributed compute smoke test (1 launcher + 2 workers compute pi).
+# Replace <name> before kubectl apply (generateName cannot be used with apply).
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:

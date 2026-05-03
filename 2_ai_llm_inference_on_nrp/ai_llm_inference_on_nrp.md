@@ -220,9 +220,96 @@ helm uninstall h2ogpt-<username>
 
 ---
 
-## A.5 Cleanup (NVIDIA section)
+## A.5 Distributed multi-GPU training with MPIJob (MPI + Horovod)
 
-Delete anything you created so nothing is left running (replace `<username>` / release name as you used):
+Most modern deep-learning training runs on more than one GPU. On Kubernetes the canonical way to coordinate the workers is the **MPIJob** custom resource (from the [MPI Operator](https://www.kubeflow.org/docs/components/training/mpi/)). It launches one **launcher** pod that drives `mpirun`, plus N **worker** pods that hold the GPUs and exchange gradients over the cluster network. NRP runs the operator cluster-wide — you just submit an MPIJob, no setup required.
+
+We'll start with a small CPU-only smoke test (compute π) to see the pattern, then run a real distributed TensorFlow benchmark on two NVIDIA GPUs.
+
+### A.5.1 MPI-pi smoke test (no GPUs)
+
+`yamls/mpi-pi.yaml` defines an MPIJob with one launcher and two workers that compute π using the canonical `mpioperator/mpi-pi` image. It needs no GPUs, so it's a great way to confirm the operator is working.
+
+Edit the file and replace `<name>` with a unique value, then submit:
+
+```bash
+kubectl create -f yamls/mpi-pi.yaml
+kubectl get mpijob,pods
+```
+
+Once the launcher pod is `Running`, stream its logs:
+
+```bash
+kubectl logs -f <name>-mpi-pi-XXXXX-launcher-YYYYY
+```
+
+<details>
+  <summary>Click to reveal expected result</summary>
+
+```
+Rank 1 on host <name>-mpi-pi-4lrz7-worker-1
+Workers: 2
+Rank 0 on host <name>-mpi-pi-4lrz7-worker-0
+pi is approximately 3.1410376000000002
+```
+
+or, if the operator falls back to the launcher-only path:
+
+```
+Distributed transport failed; falling back to local launcher-only run for demo reliability...
+Workers: 2
+Rank 0 on host <name>-mpi-pi-jzrvt-launcher
+Rank 1 on host <name>-mpi-pi-jzrvt-launcher
+pi is approximately 3.1410376000000002
+```
+</details>
+
+Clean up:
+
+```bash
+kubectl delete mpijob <name>-mpi-pi-XXXXX
+```
+
+### A.5.2 Distributed TensorFlow ResNet-101 benchmark (2× NVIDIA GPUs)
+
+`yamls/mpi-tensorflow.yaml` runs the upstream `mpioperator/tensorflow-benchmarks` image with `tf_cnn_benchmarks.py --model=resnet101 --batch_size=64 --variable_update=horovod`. The launcher coordinates two worker pods, each holding **one NVIDIA GPU**, and they exchange gradients via Horovod over MPI.
+
+Edit `yamls/mpi-tensorflow.yaml`, replace `<name>`, and submit:
+
+```bash
+kubectl create -f yamls/mpi-tensorflow.yaml
+kubectl get pods
+```
+
+Once the launcher pod is `Running`, stream its logs:
+
+```bash
+kubectl logs -f <name>-mpi-tensorflow-XXXXX-launcher-YYYYY
+```
+
+You should see the standard ResNet-101 throughput report — total images/sec, per-GPU images/sec, and the Horovod NCCL communication summary.
+
+**Things to look at while it runs:**
+- The [namespace GPU dashboard](https://grafana.nrp-nautilus.io/d/dRG9q0Ymz/k8s-compute-resources-namespace-gpus) — both worker GPUs should be at >80% utilization.
+- `kubectl top pod` — check CPU/memory headroom on the workers.
+- The cluster usage policies (target: GPU > 40%, CPU 20–200%, RAM 20–150% of requested).
+
+**Discussion questions:**
+- Which pods should you expect GPU utilization on — launcher, workers, or both? Why?
+- If GPU utilization is below ~50%, is the bottleneck the GPU or something else (data pipeline, network, CPU)?
+- Are the CPU/memory requests in this YAML right-sized for ResNet-101? How would you check?
+
+Clean up:
+
+```bash
+kubectl delete mpijob <name>-mpi-tensorflow-XXXXX
+```
+
+---
+
+## A.6 Cleanup (NVIDIA section)
+
+Delete anything you created so nothing is left running (replace `<username>` / `<name>` / release name as you used):
 
 ```bash
 # PyTorch training (if still running)
@@ -236,6 +323,10 @@ kubectl delete -n nrp-training-k8s -f yamls/ollama-rag.yaml --ignore-not-found
 
 # H2O Helm release
 helm uninstall h2ogpt-<username>
+
+# MPIJobs (if still running)
+kubectl delete mpijob <name>-mpi-pi-XXXXX --ignore-not-found
+kubectl delete mpijob <name>-mpi-tensorflow-XXXXX --ignore-not-found
 ```
 
 Stop any `kubectl port-forward` processes you started.

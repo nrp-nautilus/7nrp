@@ -26,35 +26,70 @@ Helm is a package manager for Kubernetes — instead of authoring every Deployme
 
 If you're working inside the [training JupyterHub](https://training.nrp-nautilus.io/), `kubectl`, `helm`, and the kubeconfig are already wired up in your terminal — open a terminal in JupyterLab, run `kubectl auth whoami && helm version --short` to confirm, then skip ahead to [section 2](#2-add-the-jupyterhub-helm-repository).
 
-If you're running locally, install both tools and point them at the workshop kubeconfig. The kubeconfig file ships in this repo at [`../files/nrp-training.kubeconfig`](../files/nrp-training.kubeconfig) and carries the `jupyterhub-sa` service-account token plus the cluster CA. **This is how to get the kubeconfig for the tutorial.**
+If you're running locally, install both tools and add the workshop kubeconfig with the three universal copy-paste commands below. None of them assume you have cloned this repo. The kubeconfig carries the `jupyterhub-sa` service-account token plus the cluster CA; the embedded token is valid for the duration of 7NRP, through end-of-day Thursday, May 7, 2026.
 
-**macOS / Linux — single command (installs `kubectl`, installs `helm`, points at the workshop kubeconfig).** Run this from the `7nrp/` directory of your local checkout:
+**macOS / Linux**
+
+1. Install `kubectl`:
 
 ```bash
 OS=$(uname | tr '[:upper:]' '[:lower:]') \
 && ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') \
 && curl -fsSLo /tmp/kubectl "https://dl.k8s.io/release/v1.33.0/bin/${OS}/${ARCH}/kubectl" \
 && sudo install -m 0755 /tmp/kubectl /usr/local/bin/kubectl \
+&& rm /tmp/kubectl \
+&& kubectl version --client
+```
+
+2. Install `helm`:
+
+```bash
+OS=$(uname | tr '[:upper:]' '[:lower:]') \
+&& ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') \
 && curl -fsSL "https://get.helm.sh/helm-v3.16.4-${OS}-${ARCH}.tar.gz" | tar -xz -C /tmp/ \
 && sudo install -m 0755 "/tmp/${OS}-${ARCH}/helm" /usr/local/bin/helm \
-&& rm -rf /tmp/kubectl "/tmp/${OS}-${ARCH}" \
-&& export KUBECONFIG="$(pwd)/files/nrp-training.kubeconfig" \
-&& kubectl auth whoami && helm version --short
+&& rm -rf "/tmp/${OS}-${ARCH}" \
+&& helm version --short
 ```
 
-`KUBECONFIG` is exported in your current shell only. To make it permanent, append the same `export KUBECONFIG="…/files/nrp-training.kubeconfig"` line to `~/.bashrc` or `~/.zshrc`.
+3. Add the workshop kubeconfig (download into `~/.kube/`, merge into your default config, and switch context):
 
-**Windows (PowerShell) — equivalent steps.** Run these one at a time from the `7nrp\` directory of your local checkout:
+```bash
+mkdir -p ~/.kube \
+&& curl -fsSLo ~/.kube/nrp-training.kubeconfig https://raw.githubusercontent.com/nrp-nautilus/7nrp/main/files/nrp-training.kubeconfig \
+&& chmod 600 ~/.kube/nrp-training.kubeconfig \
+&& KUBECONFIG=~/.kube/config:~/.kube/nrp-training.kubeconfig kubectl config view --flatten > ~/.kube/config.merged \
+&& mv ~/.kube/config.merged ~/.kube/config && chmod 600 ~/.kube/config \
+&& kubectl config use-context nrp-training-k8s \
+&& kubectl auth whoami
+```
+
+**Windows (PowerShell)**
+
+1. Install `kubectl`:
 
 ```powershell
-winget install -e --id Kubernetes.kubectl
-winget install -e --id Helm.Helm
-$env:KUBECONFIG = "$(Get-Location)\files\nrp-training.kubeconfig"
-kubectl auth whoami
-helm version --short
+winget install -e --id Kubernetes.kubectl ; kubectl version --client
 ```
 
-To persist `KUBECONFIG` across sessions, add the `$env:KUBECONFIG = …` line to your PowerShell profile (`$PROFILE`).
+2. Install `helm`:
+
+```powershell
+winget install -e --id Helm.Helm ; helm version --short
+```
+
+3. Add the workshop kubeconfig:
+
+```powershell
+New-Item -ItemType Directory -Force -Path "$HOME\.kube" | Out-Null ; `
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nrp-nautilus/7nrp/main/files/nrp-training.kubeconfig" -OutFile "$HOME\.kube\nrp-training.kubeconfig" ; `
+$env:KUBECONFIG = "$HOME\.kube\config;$HOME\.kube\nrp-training.kubeconfig" ; `
+kubectl config view --flatten | Out-File -Encoding ASCII "$HOME\.kube\config.merged" ; `
+Move-Item -Force "$HOME\.kube\config.merged" "$HOME\.kube\config" ; `
+$env:KUBECONFIG = "$HOME\.kube\config" ; `
+kubectl config use-context nrp-training-k8s ; `
+kubectl auth whoami
+```
 
 <details>
   <summary>Click to reveal expected output</summary>
