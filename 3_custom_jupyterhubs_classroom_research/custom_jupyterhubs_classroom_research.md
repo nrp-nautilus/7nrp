@@ -1,6 +1,6 @@
 # Setting Up Custom JupyterHubs for Classroom and Research
 
-The primary access mechanism we support for classroom and research usage on NRP is via JupyterHub. This tutorial covers how instructors, TAs, and PIs can deploy custom JupyterHub instances. Topics include controlled access, custom software stacks/containers, and resource scaling — all driven by Helm.
+The primary access mechanism we support for classroom and research usage on NRP is via JupyterHub. This tutorial covers how instructors, TAs, and PIs can deploy and maintain custom JupyterHub instances. Topics include controlled access, custom software stacks/containers, and resource scaling — all driven by Helm.
 
 YAMLs referenced in this tutorial live in this directory's [`yamls/`](yamls) folder.
 
@@ -108,7 +108,8 @@ v3.16.4+g7877b45
 
 - JupyterHub can only be deployed once per namespace.
 - For the tutorial, we have pre-created namespaces for the registered participants so you can follow along.
-- Namespaces are named using the first initial (`F`) and the last name (`surname`) of participants as `nairr-hub-Fsurname`. If you cannot locate your namespace, you can find the full list at [https://nrp.ai/viz/namespaces/](https://nrp.ai/viz/namespaces/).
+- We have passed out slips of paper with a namespace name to each participant. Please use that namespace below where you see ```<namespace>```.
+- Continue the execise using the terminal in the tutorial Jupyterhub server or from your computer's terminal.
 
 **Please stick to using your pre-made namespace.**
 
@@ -156,6 +157,7 @@ Open `yamls/jhub-values.yaml`. The full file is included in this part's `yamls/`
 hub:
   config:
     JupyterHub:
+      # Authentication and admin
       authenticator_class: dummy
       admin_access: true
       admin_users: ["admin"]
@@ -178,6 +180,7 @@ proxy:
   secretToken: 'secret_token'
   service:
     type: ClusterIP
+# single user settings
 singleuser:
   uid: 0
   fsGid: 100
@@ -209,6 +212,7 @@ singleuser:
     kubespawner_override:
       image_spec: quay.io/jupyter/pytorch-notebook:cuda12-2024-04-22
   # ...more profiles in yamls/jhub-values.yaml
+# Required: automatically close inactive sessions 
 cull:
   enabled: true
   timeout: 3600
@@ -272,7 +276,7 @@ kubectl get pvc -n <namespace>
 You should see pods for the hub, proxy, and (when a user starts a server) user pods:
 - **hub**: manages authentication, user sessions, and spawning user notebook servers.
 - **proxy**: routes incoming traffic to the hub or to the correct user notebook server.
-- **user pods**: the individual Jupyter servers for each user.
+- **user pods**(once you launch a server): the individual Jupyter servers for each user.
 
 You will also see persistent storage. A PVC for the hub is created at deployment, and PVCs for user servers are created whenever a new server is launched. If you have a shared storage that all pods should access, you can create a PVC and mount it via the Helm values.
 
