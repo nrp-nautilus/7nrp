@@ -362,62 +362,186 @@ Cleanup:
 kubectl delete -n nrp-training-k8s -f yamls/tgi-inference.yaml
 ```
 
-### 6.3 RAG over the NRP docs with Milvus + the managed LLM
+### 6.3 RAG over the NRP docs — managed LLM **vs** a local Ollama
 
-NRP also runs **Milvus** as a managed multi-tenant vector database at `milvus.nrp-nautilus.io:50051`. Get a password from [https://nrp.ai/milvus](https://nrp.ai/milvus); we have already loaded the workshop password into the namespace as the `nrp-training-milvus-credentials` secret.
+This exercise has the highest density of any in this tutorial: a managed vector database, an OpenAI-compatible managed LLM, and an offline LLM running on your own GPU — all wired into the **same** retrieval pipeline so you can compare backends back-to-back.
 
-`yamls/milvus-rag.yaml` brings up a small **A10 pod** with `pymilvus`, `sentence-transformers`, `langchain`, the OpenAI client, and Ollama (as an offline fallback). It mounts both the Milvus credentials secret and the `nrp-llm-token` secret so the RAG script can hit the managed LLM with no extra setup.
+**What you'll build (one paragraph).** A pod that (a) clones the [public NRP docs](https://gitlab.nrp-nautilus.io/prp/nrp-site) Markdown, (b) chunks + embeds every page on CPU with `sentence-transformers/all-MiniLM-L6-v2`, (c) writes the vectors to the managed [Milvus](https://nrp.ai/documentation/userdocs/ai/vector-database/) cluster at `milvus.nrp-nautilus.io:50051`, and (d) answers questions by retrieving the top-4 chunks and sending them to an LLM with the system prompt *"answer only from this context — if it isn't there, say so"*. Then we swap the LLM and re-run.
+
+**Cluster prerequisites — what makes this exercise work.** The pod mounts **two Secrets** from `nrp-training-k8s` via `secretKeyRef`:
+
+| Secret | Keys | Source |
+|---|---|---|
+| `nrp-training-milvus-credentials` | `host`, `port`, `username`, `password`, `secure`, `database` | Issued from [https://nrp.ai/milvus](https://nrp.ai/milvus); pre-loaded for the workshop |
+| `nrp-llm-token` | `OPENAI_API_BASE`, `OPENAI_API_KEY` | Bearer token from [https://nrp.ai/llmtoken](https://nrp.ai/llmtoken); pre-loaded for the workshop |
+
+Both Secrets exist in the namespace already. **If you accidentally `kubectl delete secret` either of them**, the next `tutorial-<username>-vectordb` pod will fail with `CreateContainerConfigError` and this entire section breaks for everyone in the namespace — flag a presenter on Matrix and we will re-apply from a backup. (We keep a copy of both Secrets on the presenter laptop precisely for this case.)
+
+#### Stage 1 — Bring up the RAG pod
+
+[`yamls/milvus-rag.yaml`](yamls/milvus-rag.yaml) requests **1 NVIDIA A10**, mounts both Secrets above, then on first boot installs `pymilvus`, `sentence-transformers`, `langchain-text-splitters`, the OpenAI client, **and** [Ollama](https://ollama.com) — pulling the `mistral` 7B model (~4 GB) in the background as a fully offline LLM backend.
 
 ```bash
-kubectl apply -n nrp-training-k8s -f yamls/milvus-rag.yaml
+kubectl apply  -n nrp-training-k8s -f yamls/milvus-rag.yaml
 kubectl get pod -n nrp-training-k8s tutorial-<username>-vectordb -w
 ```
 
-Once it is `Running` (the bootstrap takes ~60s — pip installs run in the foreground), exec in and run [`yamls/nrp_docs_rag.py`](yamls/nrp_docs_rag.py). The script clones the public NRP docs Markdown, chunks and embeds it with `sentence-transformers/all-MiniLM-L6-v2`, indexes it into a Milvus collection, and answers a built-in question set **only from retrieved context**:
+The pod reaches `Running` in ~15 seconds, but the bootstrap (apt → pip → ollama install → mistral pull) takes another **3–5 minutes**. Watch progress with:
 
 ```bash
-kubectl exec -it -n nrp-training-k8s tutorial-<username>-vectordb -- bash -c '
-  cd /scratch &&
-  curl -fsSLO https://raw.githubusercontent.com/nrp-nautilus/7nrp/main/2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py &&
-  python3 nrp_docs_rag.py --reindex'
+kubectl exec -n nrp-training-k8s tutorial-<username>-vectordb -- bash -c '
+  python3 -c "import pymilvus, sentence_transformers, openai" 2>&1 | tail -1
+  curl -fsS http://localhost:11434/api/tags 2>/dev/null | python3 -m json.tool
+'
 ```
 
-The pod gets `OPENAI_API_BASE` (`https://ellm.nrp-nautilus.io/v1`) and `OPENAI_API_KEY` (`rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4`) injected from the `nrp-llm-token` Secret, so the script automatically picks the **managed LLM** as the generative backend (default model: `gemma`). Override with `RAG_MODEL=minimax-m2` or any other id from the §1 table.
+When `models` lists `mistral:latest`, both backends are ready.
 
-**Expected output (real run, ~60–90s including clone):**
+#### Stage 2 — Build the index
+
+Open a shell in the pod and pull the script:
+
+```bash
+kubectl exec -it -n nrp-training-k8s tutorial-<username>-vectordb -- bash
+cd /scratch
+curl -fsSLO https://raw.githubusercontent.com/nrp-nautilus/7nrp/main/2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py
+```
+
+[`yamls/nrp_docs_rag.py`](yamls/nrp_docs_rag.py) is one ~290-line script — read it; nothing magic. Build the corpus once with `--reindex` (sparse-clones nrp-site, chunks 137 markdown files into ~960 pieces, embeds + uploads to Milvus, then runs the built-in question set against whatever LLM `OPENAI_API_BASE` points at):
+
+```bash
+python3 nrp_docs_rag.py --reindex
+```
+
+Real-run timing: clone 1 s, chunking <1 s, embedding 962 chunks ~25 s on the A10, Milvus inserts ~3 s, six built-in questions ~30 s. **The collection persists across runs** — subsequent invocations skip stages 1–3 and answer in seconds.
+
+#### Stage 3 — Ask the **managed NRP LLM**
+
+The pod inherits `OPENAI_API_BASE=https://ellm.nrp-nautilus.io/v1` and the workshop bearer token from the `nrp-llm-token` Secret, so by default the script's LLM client points at the **managed** endpoint and uses `gemma`. Ask a single question:
+
+```bash
+python3 nrp_docs_rag.py --only-ask \
+  --ask "What does the cluster do if a pod has no CPU or memory limits?"
+```
+
+**Real output (managed gemma):**
 
 ```
-Q: Is it okay to sleep infinity in a Kubernetes job? Quote the relevant NRP policy.
+[5/5] Asking 1 questions
+      LLM: model=gemma base=https://ellm.nrp-nautilus.io/v1/
+
+==============================================================================
+Q: What does the cluster do if a pod has no CPU or memory limits?
 ------------------------------------------------------------------------------
-No, it is not okay. The relevant NRP policy states: "Using `sleep infinity` in
-Jobs is not allowed. Users running a Job with `sleep infinity` command or
-equivalent (script ending with 'sleep') will be banned from using the cluster."
-URL: https://nrp.ai/documentation/userdocs/start/policies
+The provided context does not state what the cluster does if a pod has no CPU or memory limits.
 
 Sources used:
-  - https://nrp.ai/documentation/userdocs/start/policies     (score=0.555)
-  - https://nrp.ai/documentation/userdocs/start/using-nautilus  (score=0.527)
+  - https://nrp.ai/documentation/userdocs/start/using-nautilus   (score=0.684)
+  - https://nrp.ai/documentation/userdocs/storage/local           (score=0.641)
+  - https://nrp.ai/documentation/userdocs/tutorial/debugging      (score=0.636)
+  - https://nrp.ai/documentation/userdocs/start/policies          (score=0.623)
 ```
 
-**Run it from JupyterHub instead** (no GPU pod needed — embeddings run on CPU; the LLM call is offloaded to the managed service):
+Note: the answer is *not in the retrieved chunks* (the docs describe Gatekeeper rejecting pods at admission time, not "what happens" — phrased differently from the question) so the model declines. **This is the desired behavior** for a docs-grounded assistant.
+
+Try one whose answer **is** in the corpus:
 
 ```bash
+python3 nrp_docs_rag.py --only-ask \
+  --ask "How do I get a Milvus database password on NRP, and what is the connection endpoint?"
+```
+
+```
+==============================================================================
+Q: How do I get a Milvus database password on NRP, and what is the connection endpoint?
+------------------------------------------------------------------------------
+To get your Milvus database password, navigate to the Milvus password page
+(/milvus) and click the "Get milvus password" button; a link to a secure page
+containing your password will be sent to your email.
+
+The Milvus GRPC endpoint is **milvus.nrp-nautilus.io:50051**.
+
+Source: https://nrp.ai/documentation/userdocs/ai/vector-database
+```
+
+Crisp, accurate, with a single source citation — exactly what we want.
+
+#### Stage 4 — Ask the **local Ollama** with the same context
+
+Now point the **same script** at the in-pod Ollama server. Ollama exposes an OpenAI-compatible REST API on `http://localhost:11434/v1`, so the only change is three env vars:
+
+```bash
+OPENAI_API_BASE=http://localhost:11434/v1 \
+OPENAI_API_KEY=ollama \
+RAG_MODEL=mistral \
+python3 nrp_docs_rag.py --only-ask \
+  --ask "What does the cluster do if a pod has no CPU or memory limits?"
+```
+
+**Real output (local mistral 7B Q4):**
+
+```
+[5/5] Asking 1 questions
+      LLM: model=mistral base=http://localhost:11434/v1/
+
+==============================================================================
+Q: What does the cluster do if a pod has no CPU or memory limits?
+------------------------------------------------------------------------------
+If a pod has no CPU or memory limits, Kubernetes does not guarantee any
+specific amount of CPU or memory for that pod. However, it will still schedule
+the pod on a node if the node can satisfy the minimum resource requests (if
+provided). But if the container exceeds the maximum limit (if set), it will
+be killed (OOMKilled - Out of Memory) or throttled (slows down execution),
+as mentioned in the context.
+
+Source: https://nrp.ai/documentation/userdocs/start/using-nautilus#resource-allocation
+
+Sources used:
+  - https://nrp.ai/documentation/userdocs/start/using-nautilus   (score=0.684)
+  ... (identical retrieved chunks as Stage 3)
+```
+
+#### Stage 5 — Compare
+
+The retrieved chunks are **byte-for-byte identical** between Stage 3 and Stage 4 (same Milvus index, same `qwen3-style` query embedding) — but the answers differ sharply:
+
+| | Managed `gemma` (NRP) | Local `mistral` (in-pod Ollama) |
+|---|---|---|
+| Question 1 (unanswerable) | Refuses, says context lacks it | Confabulates — invents OOMKilled / throttling rules from general knowledge, ignores the system prompt |
+| Question 2 (answerable) | One paragraph, single citation | Answers correctly, sometimes adds extra Milvus.io links from training data |
+| Latency to first token | ~1.5 s, no GPU billed to you | ~6 s, your A10 |
+| Token cost | Workshop bearer token (free for now; rate-limited later) | Free as long as your pod runs |
+| Privacy | Request leaves your namespace | Request never leaves your pod |
+
+Pick one or the other based on the deployment context — **same code, same retriever, same prompt, different inference backend.** This portability is the entire point.
+
+> 💡 **Why mistral confabulates here.** Smaller models are weaker at honoring the *"only answer from context"* system prompt; they fall back on parametric knowledge. Higher-capacity local models (`llama3.1:70b`, `qwen2.5:32b`, etc.) generally do this better at the cost of more GPU memory. Try `ollama pull llama3.1:8b` and re-run — the comparison gets less dramatic.
+
+#### Stage 6 (optional) — Run from JupyterHub instead of a GPU pod
+
+If you only want to demo the workflow and skip the GPU pod entirely, the JupyterHub server pod already has `OPENAI_API_BASE` / `OPENAI_API_KEY` injected — only the Milvus creds are missing. Build a venv so you don't disturb the system Python:
+
+```bash
+python3 -m venv ~/.venv-rag && source ~/.venv-rag/bin/activate
 pip install -q pymilvus sentence-transformers langchain-text-splitters openai
+
+# Milvus creds — copy from kubectl get secret in another terminal, or paste yours
 export MILVUS_HOST=milvus.nrp-nautilus.io MILVUS_PORT=50051 MILVUS_SECURE=true \
        MILVUS_USER=<your-milvus-user> MILVUS_PASSWORD=<your-milvus-password> \
        MILVUS_DB_NAME=<your-milvus-db>
-export OPENAI_API_BASE=https://ellm.nrp-nautilus.io/v1 \
-       OPENAI_API_KEY=rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4
+
 python3 2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py --reindex
 ```
 
-Add your own questions with `--ask "..."` (repeatable), or pass `--only-ask` to skip the built-in set entirely.
+This path runs embeddings on the hub's CPU (slower — ~3 minutes for 962 chunks) and skips Ollama entirely (the hub has no GPU). Useful for a classroom where students should not each spawn an A10.
 
-Cleanup:
+#### Cleanup
 
 ```bash
 kubectl delete -n nrp-training-k8s -f yamls/milvus-rag.yaml
 ```
+
+The Milvus collection (`nrp_docs_rag`) survives in the managed DB after the pod is gone — the next `tutorial-<username>-vectordb` pod will reuse it without re-indexing unless you pass `--reindex`. To wipe it, pass `--reindex` once or use Attu / `pymilvus` to drop the collection.
 
 ---
 
