@@ -90,6 +90,16 @@ spec:
         secretKeyRef:
           name: nrp-training-milvus-credentials
           key: database
+    - name: OPENAI_API_BASE
+      valueFrom:
+        secretKeyRef:
+          name: nrp-llm-token
+          key: OPENAI_API_BASE
+    - name: OPENAI_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: nrp-llm-token
+          key: OPENAI_API_KEY
     volumeMounts:
             - name: scratch
               mountPath: /scratch

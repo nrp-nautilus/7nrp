@@ -1,564 +1,391 @@
-# Using AI and LLM Inference on NRP (Jupyter AI, Agents, RAG)
+# Using AI and LLM Inference on NRP
 
-This tutorial covers running AI and LLM inference workloads on NRP: using JupyterAI inside notebooks, deploying inference models on NVIDIA A10 GPUs and Qualcomm Cloud AI 100 Ultra cards, and building a RAG pipeline with the NRP-managed Milvus vector database.
+NRP runs hundreds of NVIDIA GPUs (and Qualcomm Cloud AI 100 cards) across the country. A subset of those GPUs power a community-shared, OpenAI-compatible LLM inference endpoint at **`https://ellm.nrp-nautilus.io/v1`**. This tutorial walks through the full path: connect to that endpoint from Jupyter AI, `curl`, Python, and an agentic coding CLI (opencode), then bring up your own GPU pod for ad-hoc inference and a RAG pipeline against the [Milvus](https://milvus.io) vector database NRP also runs.
 
-**Conventions:** Hands-on examples use the **`nrp-training-k8s`** namespace; create it with `kubectl create namespace nrp-training-k8s` if it does not already exist. In any YAML or command, replace **`<username>`** with your NRP or GitHub username to avoid name collisions.
+**Conventions.** Examples use the **`nrp-training-k8s`** namespace and the workshop A10 reservation (label `nrp-training=true`, taint `nautilus.io/reservation=nrp:NoSchedule`). Replace **`<username>`** with your NRP/GitHub username in any YAML or pod name. Manifests live in [`yamls/`](yamls).
 
-YAMLs referenced here live in this directory's [`yamls/`](yamls) folder.
-
-> 📘 **Docs:** [Managed LLMs](https://nrp.ai/documentation/userdocs/ai/llm-managed/) · [Available models](https://nrp.ai/documentation/userdocs/ai/llm-managed/models/) · [LLM API access](https://nrp.ai/documentation/userdocs/ai/llm-managed/api-access/) · [LLM in JupyterHub](https://nrp.ai/documentation/userdocs/ai/llm-jupyterhub/) · [Vector DB (Milvus)](https://nrp.ai/documentation/userdocs/vector-database/) · [Qualcomm AI 100](https://nrp.ai/documentation/userdocs/qaic/) · [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/)
-
-### NRP LLM API at a glance
-
-NRP serves open-weights LLMs behind an **OpenAI-compatible API** at `https://ellm.nrp-nautilus.io/v1`. You can try them in the browser via [Open WebUI](https://nrp-openwebui.nrp-nautilus.io) or [LibreChat](https://librechat.nrp-nautilus.io), or call the API with a token from the [LLM token page](https://nrp.ai/llmtoken). The [NRP LLM documentation](https://nrp.ai/documentation/userdocs/ai/llm-managed/) lists available models (e.g., glm-v, gpt-oss), context lengths, and tool-calling support.
-
-For **Qualcomm Cloud AI 100** inference, the cluster has 8 cards (32 SoCs). Request `qualcomm.com/qaic` and use the image `gitlab-registry.nrp-nautilus.io/cloud-ai-100/qaic-docker-images:vllm-latest` for vLLM workloads. See [Qualcomm Cloud AI 100](https://nrp.ai/documentation/userdocs/qaic/) for full details.
+> 📘 **Docs:** [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/) · [Managed LLMs](https://nrp.ai/documentation/userdocs/ai/llm-managed/) · [Available models](https://nrp.ai/documentation/userdocs/ai/llm-managed/models/) · [LLM API access](https://nrp.ai/documentation/userdocs/ai/llm-managed/api-access/) · [Client configs](https://nrp.ai/documentation/userdocs/ai/llm-managed/client-configs/) · [Vector DB (Milvus)](https://nrp.ai/documentation/userdocs/vector-database/) · [LLM token](https://nrp.ai/llmtoken)
 
 ---
 
-# A. Inference workloads on NVIDIA GPUs
+## 1. NRP GPUs power a managed LLM service
 
-The following sections demonstrate inference workloads running on **NVIDIA GPUs** (e.g., A10). These workflows use standard CUDA-enabled containers and request GPUs via `nvidia.com/gpu` in Kubernetes resource limits.
+NRP exposes GPUs to users in two complementary ways:
 
-## A.1 PyTorch GPU sanity check
+1. **Bring-your-own pod** — request `nvidia.com/gpu` (or model-specific keys like `nvidia.com/a100`, `nvidia.com/h200`, `nvidia.com/gh200`) in your container's `resources.limits`, optionally pin to a product with `nvidia.com/gpu.product` node-affinity. See §6 for hands-on. Full reference: [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/).
+2. **Managed LLM service** — a rotating catalog of open-weights LLMs is hosted on those same GPUs and exposed behind the OpenAI-compatible URL `https://ellm.nrp-nautilus.io/v1`. You don't run a pod or pay GPU time; you just send HTTP requests with a bearer token from [https://nrp.ai/llmtoken](https://nrp.ai/llmtoken). See [Managed LLMs](https://nrp.ai/documentation/userdocs/ai/llm-managed/).
 
-We start with a **PyTorch GPU sanity pod** (`yamls/pytorch-training.yaml`): it runs `nvidia-smi` and a short CUDA matmul so you can confirm the NVIDIA stack on an A10 node.
+**Available models** (see [models page](https://nrp.ai/documentation/userdocs/ai/llm-managed/models/) for the live list — capabilities below are at workshop time):
+
+| Model | Status | Params | Context | Tools | Reasoning | Vision |
+|---|---|---|---|---|---|---|
+| `qwen3` | main | 397B (A17B active) | 262K | ✓ | ✓ | image, video |
+| `qwen3-small` | main | 27B | 262K | ✓ | ✓ | image, video |
+| `gpt-oss` | main | 120B | 131K | ✓ | ✓ | — |
+| `gemma` | main | 31B | 262K | ✓ | ✓ | image, video |
+| `minimax-m2` | main | 230B | 204K | ✓ | ✓ | — |
+| `qwen3-embedding` | main | 8B | — | embeddings only | — | — |
+| `glm-4.7` | evaluating | 358B | 202K | ✓ | ✓ | — |
+| `kimi` | evaluating | 1T MoE | 262K | ✓ | ✓ | image, video |
+| `olmo` | evaluating | 32B | 64K | ✓ | — | — |
+
+**Browser entry points** (no token needed for the UI; sign in with NRP):
+
+- [https://nrp-openwebui.nrp-nautilus.io](https://nrp-openwebui.nrp-nautilus.io) — Open WebUI
+- [https://librechat.nrp-nautilus.io](https://librechat.nrp-nautilus.io) — LibreChat
+
+> ⚠️ The rest of this tutorial uses a **workshop token** that we have already loaded into the `nrp-training-k8s` namespace as the `nrp-llm-token` secret (keys: `OPENAI_API_KEY`, `OPENAI_API_BASE`). Inside the workshop JupyterHub, both env variables are already exported for you. Outside the workshop, mint your own at [https://nrp.ai/llmtoken](https://nrp.ai/llmtoken).
+
+---
+
+## 2. Talk to the LLM from Jupyter AI
+
+The Training JupyterHub at [training.nrp-nautilus.io](https://training.nrp-nautilus.io) ships with [Jupyter AI](https://jupyter-ai.readthedocs.io/) **pre-configured for the NRP managed LLM** — provider `openai-chat:minimax-m2`, embeddings provider `openai:qwen3-embedding`, and the workshop token wired in. There is nothing to install.
+
+**Try it now — chat panel (recommended).** Click the **chat (robot) icon** in the left sidebar. The settings are already populated; type a question into the prompt at the bottom and hit send. The chat replies stream back from `minimax-m2` running on NRP GPUs.
+
+**Or use the cell magic.** Spawn a session, open a Python 3 notebook, then:
+
+```python
+%load_ext jupyter_ai_magics
+```
+
+```
+%%ai openai-chat:minimax-m2
+What is the National Research Platform in two sentences?
+```
+
+Switch model per cell — first line of the magic is `%%ai <provider>:<model>`:
+
+```
+%%ai openai-chat:gpt-oss
+Write a Python one-liner that prints the first 20 Fibonacci numbers.
+```
+
+`%ai list` shows every registered provider. Both the chat panel and the magic share the same `~/.local/share/jupyter/jupyter_ai/config.json`, so picking a different model in one is reflected in the other.
+
+**What you learn.** Jupyter AI is the lowest-friction way to demo the managed LLM during a class — students log in, no token handoff, no `pip install`. Configuration lives in `~/.local/share/jupyter/jupyter_ai/config.json`; the JupyterHub spawner writes it for you on every spawn.
+
+---
+
+## 3. Talk to the LLM with `curl`
+
+The endpoint is OpenAI-compatible — anything that speaks OpenAI's REST API speaks NRP. Open a terminal in JupyterLab (or any shell with `curl`):
+
+```bash
+# In JupyterHub these are already exported. Outside, set them yourself:
+# export OPENAI_API_KEY=<your-token-from-nrp.ai/llmtoken>
+# export OPENAI_API_BASE=https://ellm.nrp-nautilus.io/v1
+echo "$OPENAI_API_BASE"
+```
+
+**List models:**
+
+```bash
+curl -s -H "Authorization: Bearer $OPENAI_API_KEY" "$OPENAI_API_BASE/models" | python3 -m json.tool | head -30
+```
+
+**Expected output:**
+
+```
+{
+    "data": [
+        {"id": "gpt-oss",      "created": ..., "object": "model", "owned_by": "SDSC"},
+        {"id": "gemma",        "created": ..., "object": "model", "owned_by": "SDSC"},
+        {"id": "minimax-m2",   "created": ..., "object": "model", "owned_by": "NRP"},
+        {"id": "qwen3",        "created": ..., "object": "model", "owned_by": "NRP"},
+        ...
+    ],
+    "object": "list"
+}
+```
+
+**Send a chat completion:**
+
+```bash
+curl -s -X POST "$OPENAI_API_BASE/chat/completions" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "minimax-m2",
+    "messages": [
+      {"role": "system", "content": "Answer in one sentence."},
+      {"role": "user",   "content": "What is the National Research Platform?"}
+    ]
+  }' | python3 -c 'import json,sys; print(json.load(sys.stdin)["choices"][0]["message"]["content"])'
+```
+
+**Stream tokens** (add `"stream": true` and read SSE chunks):
+
+```bash
+curl -sN -X POST "$OPENAI_API_BASE/chat/completions" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"minimax-m2","stream":true,"messages":[{"role":"user","content":"Count 1 to 5 with a brief reason for each."}]}'
+```
+
+You'll see `data: {…}` lines arrive incrementally, ending with `data: [DONE]`.
+
+**What you learn.** `curl` is the universal smoke test — if it works here, *anything* OpenAI-compatible (Cherry Studio, LangChain, openai-python, your own app) works.
+
+---
+
+## 4. Talk to the LLM with Python (`openai` SDK)
+
+Install the official OpenAI Python client (already present on JupyterHub spawns; outside, `pip install openai`):
+
+```bash
+python3 -c 'import openai; print(openai.__version__)'
+```
+
+**Single completion:**
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+    base_url=os.environ.get("OPENAI_API_BASE", "https://ellm.nrp-nautilus.io/v1"),
+)
+
+resp = client.chat.completions.create(
+    model="minimax-m2",
+    messages=[
+        {"role": "system", "content": "You are a concise teaching assistant."},
+        {"role": "user",   "content": "Explain Kubernetes namespaces in two sentences."},
+    ],
+)
+print(resp.choices[0].message.content)
+```
+
+**Streaming:**
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"],
+                base_url=os.environ.get("OPENAI_API_BASE", "https://ellm.nrp-nautilus.io/v1"))
+
+stream = client.chat.completions.create(
+    model="minimax-m2",
+    messages=[{"role": "user", "content": "Write a haiku about GPUs."}],
+    stream=True,
+)
+for chunk in stream:
+    if not chunk.choices:
+        continue
+    delta = chunk.choices[0].delta.content
+    if delta:
+        print(delta, end="", flush=True)
+print()
+```
+
+**Pick a different model** by changing `model="…"`. Use `gpt-oss` for code-heavy tasks, `qwen3` for the largest context window (262K), `gemma` for vision-language input.
+
+**What you learn.** The exact same code targets the OpenAI cloud, NRP's managed LLM, or any vLLM/TGI server you bring up yourself (§6) — only `base_url` changes. This is the portability dividend of the OpenAI-compatible API.
+
+---
+
+## 5. Agentic coding with `opencode` — build a chess game
+
+[`opencode`](https://opencode.ai) is a TUI agentic coding tool, similar to Claude Code or Cursor's CLI. It plans, edits files, runs tools, and iterates. We'll point it at the NRP managed LLM and have it write a small chess game from scratch.
+
+**Install** (inside a JupyterLab terminal — works in macOS/Linux too):
+
+```bash
+curl -fsSL https://opencode.ai/install | bash
+export PATH="$HOME/.opencode/bin:$PATH"
+opencode --version
+```
+
+**Configure** the NRP provider. Write `~/.config/opencode/opencode.json`:
+
+```bash
+mkdir -p ~/.config/opencode
+cat > ~/.config/opencode/opencode.json <<'JSON'
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "nrp": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "NRP LLM",
+      "options": {
+        "baseURL": "https://ellm.nrp-nautilus.io/v1",
+        "apiKey": "{env:OPENAI_API_KEY}"
+      },
+      "models": {
+        "minimax-m2": { "name": "MiniMax M2"  },
+        "gpt-oss":    { "name": "GPT-OSS"     },
+        "qwen3":      { "name": "Qwen3 397B"  },
+        "gemma":      { "name": "Gemma 31B"   },
+        "kimi":       { "name": "Kimi 1T MoE" }
+      }
+    }
+  },
+  "model": "nrp/minimax-m2"
+}
+JSON
+```
+
+The `{env:OPENAI_API_KEY}` placeholder picks up your shell variable — already set in JupyterHub. Outside, `export OPENAI_API_KEY=…` first.
+
+**Make a project directory and launch opencode:**
+
+```bash
+mkdir -p ~/chess && cd ~/chess
+opencode
+```
+
+This drops you into the opencode TUI. Press `/` to open the prompt and paste:
+
+```
+Write a single-file Python program chess.py that lets two humans play chess in
+the terminal. Use the python-chess library. Render the board after every move
+using board.unicode(). Accept moves in SAN (e.g., "e4", "Nf3"). When the game
+ends, print the result. Add a top-of-file docstring. After writing the file,
+add a requirements.txt with python-chess pinned, and tell me the exact
+commands to install and play.
+```
+
+opencode plans, writes `chess.py` and `requirements.txt`, and prints the run instructions. **Run them:**
+
+```bash
+pip install -r requirements.txt
+python chess.py
+```
+
+Try a few moves (`e4`, `e5`, `Nf3`, …). Press `Ctrl+C` to quit.
+
+**Switch models inside opencode** with `Ctrl+P` → Switch models — try the same prompt against `gpt-oss` (better at code than minimax often) or `qwen3` (longest context).
+
+**What you learn.** Any agentic coding tool that supports an OpenAI-compatible base URL — opencode, Crush, Continue, Cursor's custom-provider field, Claude Code via `ANTHROPIC_BASE_URL` — works against NRP. You bring the workflow you already use; NRP supplies the inference. Reference: [client configs](https://nrp.ai/documentation/userdocs/ai/llm-managed/client-configs/).
+
+---
+
+## 6. Bring your own GPU pod
+
+The managed LLM is convenient but constrained: you don't pick the model weights, the version, the quantization, or the runtime. When you need that control — or when you want to run training, embeddings, or a custom inference engine — request a GPU yourself. All examples below already include the workshop reservation pattern (you saw this in Tutorial 1):
+
+```yaml
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      preference:
+        matchExpressions:
+        - { key: nrp-training, operator: In, values: ["true"] }
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - { key: nvidia.com/gpu.product, operator: In, values: [NVIDIA-A10] }
+tolerations:
+- { key: nautilus.io/reservation, operator: Equal, value: nrp, effect: NoSchedule }
+```
+
+The **toleration** lets your pod land on the tainted reservation nodes; the **required affinity** constrains GPUs to A10s; the **preferred affinity** prefers our reserved pool. Outside this workshop, drop both blocks (or change them) to land on general NRP capacity. See [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/) for other GPU products and the matching resource keys.
+
+### 6.1 PyTorch GPU sanity check + 1-epoch MNIST
+
+`yamls/pytorch-training.yaml` requests **1 NVIDIA A10**, runs `nvidia-smi`, then trains MNIST for one epoch using `nvcr.io/nvidia/pytorch:23.07-py3`. Apply (replace `<username>`):
 
 ```bash
 kubectl apply -n nrp-training-k8s -f yamls/pytorch-training.yaml
+kubectl get pod -n nrp-training-k8s tutorial-<username>-gp3 -w
 ```
 
-Check status:
+Once `Completed`, read the logs:
 
 ```bash
-kubectl get pods -n nrp-training-k8s
+kubectl logs -n nrp-training-k8s tutorial-<username>-gp3 | tail -25
 ```
 
-When the pod has run to completion (or while running), check the logs — you should see `nvidia-smi` and `GPU matmul OK`:
+**Expected output (truncated):**
 
-```bash
-kubectl logs -n nrp-training-k8s tutorial-<username>-gp3
+```
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 535.86.10              Driver Version: 535.86.10    CUDA Version: 12.2     |
++-----------------------------------------+----------------------+----------------------+
+|   0  NVIDIA A10                  ...    |  ...                 |   0%      Default    |
++-----------------------------------------+----------------------+----------------------+
+
+Train Epoch: 1 [0/60000 (0%)]    Loss: 2.305199
+...
+Test set: Average loss: 0.0501, Accuracy: 9849/10000 (98%)
+PyTorch MNIST completed successfully.
 ```
 
-Once you are done exploring, delete the pod:
+Cleanup:
 
 ```bash
 kubectl delete -n nrp-training-k8s -f yamls/pytorch-training.yaml
 ```
 
----
+### 6.2 Run your own LLM with TGI (Text Generation Inference)
 
-## A.2 Text Generation Inference (TGI)
-
-Start the inference pod:
+Same pattern but with HuggingFace's [TGI](https://github.com/huggingface/text-generation-inference) serving `HuggingFaceH4/zephyr-7b-beta` on a single A10. `yamls/tgi-inference.yaml` boots the server and keeps it alive for one hour.
 
 ```bash
 kubectl apply -n nrp-training-k8s -f yamls/tgi-inference.yaml
+kubectl get pod -n nrp-training-k8s tutorial-<username>-tgi -w
 ```
 
-Once the pod is running, get interactive access:
+Wait for the model to download and the server to log `Connected` (1–3 min). Then **port-forward** the TGI port to your machine:
 
 ```bash
-kubectl exec -it -n nrp-training-k8s tutorial-<username>-tgi -- /bin/bash
+kubectl port-forward -n nrp-training-k8s tutorial-<username>-tgi 8080:80
 ```
 
-Inside the pod, start a Python interpreter and run:
-
-```python
-from huggingface_hub import InferenceClient
-client = InferenceClient(model="http://0.0.0.0:80")
-for token in client.text_generation("Who made cat videos?", max_new_tokens=24, stream=True):
-    print(token)
-```
-
----
-
-## A.3 RAG example with Ollama
-
-Start the pod:
+In another terminal:
 
 ```bash
-kubectl apply -n nrp-training-k8s -f yamls/ollama-rag.yaml
-```
-
-Watch the logs and wait until the installs and book download complete:
-
-```bash
-kubectl logs -n nrp-training-k8s tutorial-<username>-ollama
-```
-
-Once the book is downloaded (you'll see `wget` output in the logs), exec into the pod and start the Ollama server, then pull Mistral:
-
-```bash
-kubectl exec -it -n nrp-training-k8s tutorial-<username>-ollama -- /bin/bash
-cd /scratch
-nohup ollama serve &
-ollama pull mistral
-```
-
-Download our test script and run it:
-
-```bash
-wget https://raw.githubusercontent.com/nrp-nautilus/nairr-tutorial/main/scripts/test.py
-python3 -i test.py
-```
-
-Inside the interactive Python interpreter, run the queries one by one (wait for each result before moving on):
-
-```python
-rag.invoke("What do you feed pigeons ?")
-rag.invoke("Do tame pigeons have better plumage ?")
-rag.invoke("What affects pigeon plumage ?")
-```
-
----
-
-## A.4 LLM as a service: Helm-based H2O deployment
-
-This section deploys H2O GPT via Helm. **Install Helm** so you can run `helm`:
-
-```bash
-curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4
-chmod 700 get_helm.sh
-./get_helm.sh
-```
-
-Make sure `~/.local/bin` is on your `PATH`:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-Or in a Python/notebook cell:
-
-```python
-import os
-os.environ["PATH"] = os.path.expanduser("~/.local/bin:") + os.environ.get("PATH", "")
-```
-
-Clone the [H2O project](https://github.com/h2oai):
-
-```bash
-git clone https://github.com/h2oai/h2ogpt.git
-```
-
-Copy the values file into the cloned repo and `cd` in:
-
-```bash
-cp yamls/h2o-values.yaml h2ogpt/
-cd h2ogpt
-```
-
-Install the Helm chart from **inside the `h2ogpt` directory**. Use a unique release name (replace `username`):
-
-```bash
-helm install h2ogpt-<username> helm/h2ogpt-chart -f h2o-values.yaml
-```
-
-Check the pods (`kubectl get pods`, optionally `grep` your username) and wait until they are running. The model will take some time to load into GPU memory.
-
-Port-forward to the pod from a terminal:
-
-```bash
-kubectl port-forward h2ogpt-<username>-<hash> 5000:5000 7860:7860
-```
-
-While port-forward is running, list models from another shell:
-
-```bash
-curl http://localhost:5000/v1/models
-```
-
-Or open [http://localhost:5000/v1/models](http://localhost:5000/v1/models) in a browser.
-
-Run a query:
-
-```bash
-curl -X POST "http://localhost:5000/v1/chat/completions" \
+curl -s http://127.0.0.1:8080/info | python3 -m json.tool | head
+curl -s http://127.0.0.1:8080/generate \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "h2oai/h2o-danube2-1.8b-chat",
-    "messages": [
-      {"role": "user", "content": "How tall are penguins?"}
-    ]
-  }'
+  -d '{"inputs":"Why are penguins black and white?","parameters":{"max_new_tokens":60}}'
 ```
 
-The chart also installs a chat application — open [http://localhost:7860](http://localhost:7860) in a browser to access the chat UI.
+Or — and this is the punchline — point the **same OpenAI-style code from §4** at it (TGI exposes an OpenAI-compatible `/v1/chat/completions`). In Python:
 
-You can expose the LLM via an Ingress (carefully edit all fields with your username):
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  annotations:
-    kubernetes.io/ingress.class: haproxy
-  name: llm-test-<username>
-spec:
-  rules:
-  - host: llm-test-<username>.nrp-nautilus.io
-    http:
-      paths:
-      - backend:
-          service:
-            name: h2ogpt-<username>-web
-            port:
-              number: 80
-        path: /
-        pathType: ImplementationSpecific
-  tls:
-  - hosts:
-    - llm-test-<username>.nrp-nautilus.io
+```python
+from openai import OpenAI
+client = OpenAI(api_key="not-needed", base_url="http://127.0.0.1:8080/v1")
+print(client.chat.completions.create(
+    model="tgi",
+    messages=[{"role":"user","content":"Hi from my own GPU."}],
+).choices[0].message.content)
 ```
 
-When you are done, release the resources:
+Cleanup:
 
 ```bash
-helm uninstall h2ogpt-<username>
+kubectl delete -n nrp-training-k8s -f yamls/tgi-inference.yaml
 ```
 
----
+### 6.3 RAG over the NRP docs with Milvus + the managed LLM
 
-## A.5 Distributed multi-GPU training with MPIJob (MPI + Horovod)
+NRP also runs **Milvus** as a managed multi-tenant vector database at `milvus.nrp-nautilus.io:50051`. Get a password from [https://nrp.ai/milvus](https://nrp.ai/milvus); we have already loaded the workshop password into the namespace as the `nrp-training-milvus-credentials` secret.
 
-Most modern deep-learning training runs on more than one GPU. On Kubernetes the canonical way to coordinate the workers is the **MPIJob** custom resource (from the [MPI Operator](https://www.kubeflow.org/docs/components/training/mpi/)). It launches one **launcher** pod that drives `mpirun`, plus N **worker** pods that hold the GPUs and exchange gradients over the cluster network. NRP runs the operator cluster-wide — you just submit an MPIJob, no setup required.
-
-We'll start with a small CPU-only smoke test (compute π) to see the pattern, then run a real distributed TensorFlow benchmark on two NVIDIA GPUs.
-
-### A.5.1 MPI-pi smoke test (no GPUs)
-
-`yamls/mpi-pi.yaml` defines an MPIJob with one launcher and two workers that compute π using the canonical `mpioperator/mpi-pi` image. It needs no GPUs, so it's a great way to confirm the operator is working.
-
-Edit the file and replace `<username>` with a unique value, then submit:
-
-```bash
-kubectl create -n nrp-training-k8s -f yamls/mpi-pi.yaml
-kubectl get mpijob,pods -n nrp-training-k8s
-```
-
-Once the launcher pod is `Running`, stream its logs:
-
-```bash
-kubectl logs -f <username>-mpi-pi-XXXXX-launcher-YYYYY -n nrp-training-k8s
-```
-
-<details>
-  <summary>Click to reveal expected result</summary>
-
-```
-Rank 1 on host <username>-mpi-pi-4lrz7-worker-1
-Workers: 2
-Rank 0 on host <username>-mpi-pi-4lrz7-worker-0
-pi is approximately 3.1410376000000002
-```
-
-or, if the operator falls back to the launcher-only path:
-
-```
-Distributed transport failed; falling back to local launcher-only run for demo reliability...
-Workers: 2
-Rank 0 on host <username>-mpi-pi-jzrvt-launcher
-Rank 1 on host <username>-mpi-pi-jzrvt-launcher
-pi is approximately 3.1410376000000002
-```
-</details>
-
-Clean up:
-
-```bash
-kubectl delete mpijob <username>-mpi-pi-XXXXX
-```
-
-### A.5.2 Distributed TensorFlow ResNet-101 benchmark (2× NVIDIA GPUs)
-
-`yamls/mpi-tensorflow.yaml` runs the upstream `mpioperator/tensorflow-benchmarks` image with `tf_cnn_benchmarks.py --model=resnet101 --batch_size=64 --variable_update=horovod`. The launcher coordinates two worker pods, each holding **one NVIDIA GPU**, and they exchange gradients via Horovod over MPI.
-
-Edit `yamls/mpi-tensorflow.yaml`, replace `<username>`, and submit:
-
-```bash
-kubectl create -f yamls/mpi-tensorflow.yaml
-kubectl get pods
-```
-
-Once the launcher pod is `Running`, stream its logs:
-
-```bash
-kubectl logs -f <username>-mpi-tensorflow-XXXXX-launcher-YYYYY
-```
-
-You should see the standard ResNet-101 throughput report — total images/sec, per-GPU images/sec, and the Horovod NCCL communication summary.
-
-**Things to look at while it runs:**
-- The [namespace GPU dashboard](https://grafana.nrp-nautilus.io/d/dRG9q0Ymz/k8s-compute-resources-namespace-gpus) — both worker GPUs should be at >80% utilization.
-- `kubectl top pod` — check CPU/memory headroom on the workers.
-- The cluster usage policies (target: GPU > 40%, CPU 20–200%, RAM 20–150% of requested).
-
-**Discussion questions:**
-- Which pods should you expect GPU utilization on — launcher, workers, or both? Why?
-- If GPU utilization is below ~50%, is the bottleneck the GPU or something else (data pipeline, network, CPU)?
-- Are the CPU/memory requests in this YAML right-sized for ResNet-101? How would you check?
-
-Clean up:
-
-```bash
-kubectl delete mpijob <username>-mpi-tensorflow-XXXXX
-```
-
----
-
-## A.6 Cleanup (NVIDIA section)
-
-Delete anything you created so nothing is left running (replace `<username>` / `<username>` / release name as you used):
-
-```bash
-# PyTorch training (if still running)
-kubectl delete -n nrp-training-k8s -f yamls/pytorch-training.yaml --ignore-not-found
-
-# TGI inference pod
-kubectl delete -n nrp-training-k8s -f yamls/tgi-inference.yaml --ignore-not-found
-
-# Ollama RAG pod
-kubectl delete -n nrp-training-k8s -f yamls/ollama-rag.yaml --ignore-not-found
-
-# H2O Helm release
-helm uninstall h2ogpt-<username>
-
-# MPIJobs (if still running)
-kubectl delete mpijob <username>-mpi-pi-XXXXX --ignore-not-found
-kubectl delete mpijob <username>-mpi-tensorflow-XXXXX --ignore-not-found
-```
-
-Stop any `kubectl port-forward` processes you started.
-
----
-
-# B. Inference workloads on Qualcomm Cloud AI 100 Ultra
-
-The following sections demonstrate inference workloads running on **Qualcomm Cloud AI 100 Ultra** accelerators. These devices are exposed in Kubernetes as `qualcomm.com/qaic` and use the SDK container image `ghcr.io/quic/cloud_ai_inference_ubuntu24:1.20.6.0`.
-
-You have two options for running Qualcomm inference:
-1. **Via JupyterHub** — select the NRP Cloud AI Inference profile from the spawner.
-2. **Via kubectl** — deploy a standalone pod using `yamls/qaic-inference.yaml`.
-
-## B.1 Qualcomm via JupyterHub
-
-The NRP provides access to Qualcomm Cloud AI 100 Ultra devices directly through custom JupyterHub profiles. This launches an isolated environment with the Qualcomm Platform and Apps SDKs pre-installed.
-
-### Launching the Qualcomm profile
-
-1. Navigate to the [NRP Training JupyterHub](https://training.nrp-nautilus.io).
-2. To utilize Qualcomm inference accelerators, select the **NRP Cloud AI Inference** option from the Spawner Profile list.
-3. In the form, locate the **Qualcomm Cloud AI Devices** picker and select exactly **1** device.
-4. Click **Start** to spawn your instance. Your pod will execute as the `jovyan` user (UID 1000) with a dedicated `50Gi` persistent volume mounted.
-
-### Accessing the Qualcomm environment
-
-Once your JupyterLab spins up, open a **Terminal** from the launcher. You'll see a welcome message confirming the SDK versions:
-
-```
-==================================
-== Qualcomm Cloud AI Containers ==
-==================================
-
-Platform SDK version: 1.20.6.0
-Apps SDK version: 1.20.6.0
-```
-
-### Activating the pre-built vLLM environment
-
-The Qualcomm image bundles an optimized Python virtual environment with the vLLM bindings compiled against the QAIC architecture. Source it:
-
-```bash
-source /opt/vllm-env/bin/activate
-```
-
-### Running example inference
-
-Built-in offline inference examples are under `/opt/qti-aic/integrations/vllm/`. For **vision-language** (e.g., OpenGVLab/InternVL2_5-1B):
-
-```bash
-source /opt/vllm-env/bin/activate
-cd /opt/qti-aic/integrations/vllm
-python examples/offline_inference/qaic_vision_language.py \
-  --image-url https://huggingface.co/datasets/huggingface/documentation-images/resolve/0052a70beed5bf71b92610a43a52df6d286cd5f3/diffusers/rabbit.jpg \
-  --question "What's in the image?" \
-  -m internvl_chat \
-  --num-prompt 1
-```
-
-Alternative (KV offload): `python examples/offline_inference/qaic_vision_language_kv_offload.py` with the same `--image-url` and `--question` arguments.
-
----
-
-## B.2 Qualcomm via kubectl
-
-Deploy a Qualcomm inference pod directly with `kubectl`, similar to the NVIDIA TGI flow above. The pod requests `qualcomm.com/qaic: 1` and runs `sleep infinity`. After the pod is Running, exec in and run inference.
-
-```bash
-kubectl apply -n nrp-training-k8s -f yamls/qaic-inference.yaml
-```
-
-Check pod status until it is Running:
-
-```bash
-kubectl get pods -n nrp-training-k8s
-```
-
-Exec into the pod and run the vision-language inference. Set `HOME=/scratch`, activate the vLLM env, and run the example:
-
-```bash
-kubectl exec -n nrp-training-k8s tutorial-<username>-qaic-inference -- bash -c '
-  cd /scratch
-  export HOME=/scratch
-  source /opt/vllm-env/bin/activate
-  cd /opt/qti-aic/integrations/vllm
-  python examples/offline_inference/qaic_vision_language.py \
-    --image-url https://huggingface.co/datasets/huggingface/documentation-images/resolve/0052a70beed5bf71b92610a43a52df6d286cd5f3/diffusers/rabbit.jpg \
-    --question "What'\''s in the image?" \
-    -m internvl_chat \
-    --num-prompt 1'
-```
-
-### vLLM OpenAI-compatible API server on QAIC
-
-You can run vLLM's OpenAI-compatible API server on the same Qualcomm pod and then call it with `curl` or any OpenAI SDK. The [Qualcomm Cloud AI vLLM guide](https://quic.github.io/cloud-ai-sdk-pages/latest/Getting-Started/Installation/vLLM/vLLM/index.html) documents supported models and QAIC-specific flags (`--device qaic`, `--quantization mxfp6`, `--kv-cache-dtype mxint8`). Use a model known to work on QAIC (e.g., `TinyLlama/TinyLlama-1.1B-Chat-v1.0`). The server takes a few minutes to load and compile the model.
-
-Start the server inside the pod (background; logs go to `/scratch/vllm.log`):
-
-```bash
-kubectl exec -n nrp-training-k8s tutorial-<username>-qaic-inference -- bash -c '
-  source /opt/vllm-env/bin/activate
-  export HOME=/scratch XDG_CACHE_HOME=/scratch QEFF_HOME=/scratch OMP_NUM_THREADS=8
-  nohup python3 -m vllm.entrypoints.openai.api_server \
-    --host 0.0.0.0 --port 8000 \
-    --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 \
-    --max-model-len 256 --max-num-seq 16 --max-seq-len-to-capture 128 \
-    --device qaic --block-size 32 \
-    --quantization mxfp6 --kv-cache-dtype mxint8 \
-    > /scratch/vllm.log 2>&1 &
-  echo started'
-```
-
-Port-forward from your machine (run in a terminal, leave it running):
-
-```bash
-kubectl port-forward -n nrp-training-k8s tutorial-<username>-qaic-inference 8000:8000
-```
-
-Call the API:
-
-```bash
-curl -s http://127.0.0.1:8000/v1/models
-curl -s -X POST http://127.0.0.1:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"TinyLlama/TinyLlama-1.1B-Chat-v1.0","messages":[{"role":"user","content":"Say hello."}],"max_tokens":20}'
-```
-
-Once done, clean up:
-
-```bash
-kubectl delete -n nrp-training-k8s -f yamls/qaic-inference.yaml
-```
-
----
-
-# C. Multi-tenant vector databasing with Milvus for RAG
-
-NRP runs **Milvus** as a managed multi-tenant vector database service. You don't install the operator or create the instance yourself — the gRPC endpoint is `milvus.nrp-nautilus.io:50051`. To get access, use the [Milvus password page](https://nrp.ai/milvus) and click "Get milvus password" — the secure link is emailed to you. You must be in a [namespace/group with Milvus enabled](https://nrp.ai/namespaces). Group names may use letters, numbers, and dashes; any dashes are converted to underscores in the Milvus database name.
-
-From there you can [define collections](https://milvus.io/docs/manage-collections.md), run [vector search](https://milvus.io/docs/single-vector-search.md), or use the [Attu GUI](https://milvus.io/docs/quickstart_with_attu.md). Full reference: [NRP vector database](https://nrp.ai/documentation/userdocs/vector-database/).
-
-## C.1 RAG example using Milvus (NVIDIA backend)
-
-**Prerequisite:** get your Milvus password and ensure your group has Milvus enabled before starting the pod.
-
-In `yamls/milvus-rag.yaml`, **replace `<username>`** so the pod name `tutorial-<username>-vectordb` is unique. Apply:
+`yamls/milvus-rag.yaml` brings up a small **A10 pod** with `pymilvus`, `sentence-transformers`, `langchain`, the OpenAI client, and Ollama (as an offline fallback). It mounts both the Milvus credentials secret and the `nrp-llm-token` secret so the RAG script can hit the managed LLM with no extra setup.
 
 ```bash
 kubectl apply -n nrp-training-k8s -f yamls/milvus-rag.yaml
+kubectl get pod -n nrp-training-k8s tutorial-<username>-vectordb -w
 ```
 
-Watch the logs and wait until installs are done:
-
-```bash
-kubectl logs -n nrp-training-k8s tutorial-<username>-vectordb
-```
-
-The pod automatically installs Python dependencies, Ollama, starts the Ollama server, and downloads the Mistral model. Download the example script (example repo: [groundsada/nrp-milvus-example](https://github.com/groundsada/nrp-milvus-example)):
-
-```bash
-kubectl exec -it -n nrp-training-k8s tutorial-<username>-vectordb -- /bin/bash
-# inside the pod:
-cd /scratch
-wget https://raw.githubusercontent.com/groundsada/nrp-milvus-example/refs/heads/main/milvus-example.py
-```
-
-Once the install is complete, run the example. The script uses the Milvus connection from the secret `nrp-training-milvus-credentials` (host, port, username, password, database). The collection name is `simple_rag_example`. To use a different collection, edit `milvus-example.py` and change `collection_name="simple_rag_example"` (two places).
-
-Run inside the pod:
-
-```bash
-cd /scratch
-python3 milvus-example.py
-```
-
-## C.2 RAG over the NRP documentation
-
-A more practical RAG demo: ingest [https://nrp.ai/documentation/](https://nrp.ai/documentation/) into Milvus and answer policy and how-to questions about NRP itself ("is it okay to `sleep infinity` in a Job?", "how do I expose a web service over HTTPS?", "how do I get a Milvus password?").
-
-The script lives at [`yamls/nrp_docs_rag.py`](yamls/nrp_docs_rag.py). It:
-
-1. **Sparse-clones** the public [`nrp-site`](https://gitlab.nrp-nautilus.io/prp/nrp-site/-/tree/main/src/content/docs/Documentation) GitLab repo (only `src/content/docs/Documentation`). This is the source-of-truth Markdown that powers `https://nrp.ai/documentation/`.
-2. Reads every `.md` / `.mdx` file (~140), strips YAML frontmatter and Astro `import …` lines, and rebuilds a citable `https://nrp.ai/documentation/...` URL from each filesystem path.
-3. Chunks the text and embeds with `sentence-transformers/all-MiniLM-L6-v2` (CPU-friendly, 384-dim).
-4. Stores everything in a Milvus collection called `nrp_docs_rag` (override with `RAG_COLLECTION=<name>`).
-5. Runs a built-in question set through the LLM, answering **only from retrieved context** and citing the source URL(s).
-
-Cloning the source markdown beats web-scraping for this workshop: it's faster (no per-page HTTP), the content has no rendered chrome, and refreshing the corpus is a `git pull` away.
-
-**LLM backend.** The script auto-selects:
-
-- The **NRP managed LLM** (OpenAI-compatible) when `OPENAI_API_BASE` points to `https://ellm.nrp-nautilus.io/v1`. JupyterHub spawns already export this and `OPENAI_API_KEY`, so no extra setup is needed inside a JupyterLab terminal.
-- A **local Ollama mistral** server otherwise (the default in the `tutorial-<username>-vectordb` pod from C.1).
-
-You can override the model with `RAG_MODEL=<name>`. Default is `gemma` for the managed LLM (deterministic, returns content directly) and `mistral` for Ollama.
-
-**Run it from inside the C.1 pod** (Ollama backend, no JupyterHub needed):
+Once it is `Running` (the bootstrap takes ~60s — pip installs run in the foreground), exec in and run [`yamls/nrp_docs_rag.py`](yamls/nrp_docs_rag.py). The script clones the public NRP docs Markdown, chunks and embeds it with `sentence-transformers/all-MiniLM-L6-v2`, indexes it into a Milvus collection, and answers a built-in question set **only from retrieved context**:
 
 ```bash
 kubectl exec -it -n nrp-training-k8s tutorial-<username>-vectordb -- bash -c '
-  apt-get install -y -qq git &&
   cd /scratch &&
   curl -fsSLO https://raw.githubusercontent.com/nrp-nautilus/7nrp/main/2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py &&
   python3 nrp_docs_rag.py --reindex'
 ```
 
-**Or run it from a JupyterHub terminal** (managed LLM backend, lighter weight — no GPU pod needed). Open a terminal in your JupyterLab session, then:
+Because `OPENAI_API_BASE` and `OPENAI_API_KEY` are exported in the pod, the script automatically picks the **managed LLM** as the generative backend (default model: `gemma`). Override with `RAG_MODEL=minimax-m2` or any other id from the §1 table.
 
-```bash
-pip install -q pymilvus sentence-transformers langchain-text-splitters
-export MILVUS_HOST=milvus.nrp-nautilus.io \
-       MILVUS_PORT=50051 \
-       MILVUS_USER=<your-milvus-user> \
-       MILVUS_PASSWORD=<your-milvus-password> \
-       MILVUS_SECURE=true \
-       MILVUS_DB_NAME=<your-milvus-db>
-# OPENAI_API_BASE / OPENAI_API_KEY are already exported by the hub.
-python 2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py --reindex
-```
-
-The first run does a full clone + embed + index (`--reindex` drops any prior `nrp_docs_rag` collection and rebuilds it; if your Milvus role doesn't have `DropCollection`, set `RAG_COLLECTION=<unique-name>` instead). Subsequent runs skip ingest and just answer questions; pass `--reindex` again to refresh from the latest commit on the docs repo, or `--limit N` to cap how many `.md` files are read for a quick demo. Use `--repo-dir <path>` (or `RAG_REPO_DIR`) to control where the clone lives — default is `/tmp/nrp-site`.
-
-**Built-in questions** cover the workshop-relevant topics (Milvus password, GPU policy, storage classes, identity / kubelogin, GitLab CI, resource limits). Add your own with `--ask "..."` (repeatable), and pass `--only-ask` to skip the built-in set entirely:
-
-```bash
-python 2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py --only-ask \
-    --ask "Is it okay to sleep infinity in a Job? Quote the policy." \
-    --ask "How do I expose a web service over HTTPS on NRP?"
-```
-
-**Expected output (real run, full 137-file corpus, ~86s end-to-end including clone):**
+**Expected output (real run, ~60–90s including clone):**
 
 ```
 Q: Is it okay to sleep infinity in a Kubernetes job? Quote the relevant NRP policy.
@@ -573,86 +400,37 @@ Sources used:
   - https://nrp.ai/documentation/userdocs/start/using-nautilus  (score=0.527)
 ```
 
-```
-Q: How do I expose a web service over HTTPS on NRP?
-------------------------------------------------------------------------------
-Create an Ingress with ingressClassName: haproxy, a host like
-<whatever>.nrp-nautilus.io, a backend pointing at your Service, and a tls:
-section listing the host. SSL termination is provided automatically for
-.nrp-nautilus.io subdomains. For your own domain, add a kubernetes.io/tls
-secret and CNAME to nrp-nautilus.io (or east.nrp-nautilus.io).
-
-Sources:
-  - https://nrp.ai/documentation/userdocs/running/ingress      (score=0.503)
-  - https://nrp.ai/documentation/userdocs/tutorial/basic2      (score=0.472)
-```
-
-If a question doesn't match anything in the corpus the model will say "the provided context does not contain..." instead of hallucinating — that's the point of RAG.
-
-## C.3 Milvus RAG with the LLM on Qualcomm
-
-You can run the same RAG pipeline with the **LLM on Qualcomm Cloud AI 100 Ultra**: embeddings and Milvus stay on the existing pod; only the generative step uses a vLLM server running on QAIC.
-
-Two ways:
-
-1. **Via JupyterHub** — use the **NRP Cloud AI Inference** profile (B.1): spawn with 1 Qualcomm device, then run the QAIC vLLM server and RAG steps from a terminal there. The Milvus RAG pod (C.1) must be running in the same namespace, and the RAG script must point `OPENAI_API_BASE` at the QAIC server (port-forward or in-cluster service).
-2. **Via kubectl** — deploy the QAIC vLLM server pod and service, then run the RAG script from the Milvus RAG pod.
-
-### Deploy the QAIC vLLM server
-
-In `yamls/qaic-vllm-server.yaml` replace `<username>` in the pod name, then apply. The pod runs an OpenAI-compatible vLLM server (TinyLlama) on port 8000; the service `qaic-vllm-server` lets other pods in `nrp-training-k8s` reach it (a namespace exception may be required; see [NRP policies](https://nrp.ai/documentation/userdocs/start/policies/)).
+**Run it from JupyterHub instead** (no GPU pod needed — embeddings run on CPU; the LLM call is offloaded to the managed service):
 
 ```bash
-kubectl apply -n nrp-training-k8s -f yamls/qaic-vllm-server.yaml
+pip install -q pymilvus sentence-transformers langchain-text-splitters openai
+export MILVUS_HOST=milvus.nrp-nautilus.io MILVUS_PORT=50051 MILVUS_SECURE=true \
+       MILVUS_USER=<your-milvus-user> MILVUS_PASSWORD=<your-milvus-password> \
+       MILVUS_DB_NAME=<your-milvus-db>
+# OPENAI_API_BASE / OPENAI_API_KEY are already exported by the hub.
+python3 2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py --reindex
 ```
 
-Check pod status and logs until vLLM is ready:
+Add your own questions with `--ask "..."` (repeatable), or pass `--only-ask` to skip the built-in set entirely.
+
+Cleanup:
 
 ```bash
-kubectl get pods -n nrp-training-k8s -l app=qaic-vllm-server
-kubectl logs -n nrp-training-k8s tutorial-<username>-qaic-vllm
+kubectl delete -n nrp-training-k8s -f yamls/milvus-rag.yaml
 ```
 
-Run the Milvus RAG script **from the Milvus RAG pod**, pointing the LLM at the QAIC server:
+---
+
+## 7. Cleanup
 
 ```bash
-kubectl exec -it -n nrp-training-k8s tutorial-<username>-vectordb -- bash -c '
-  cd /scratch
-  wget -q https://raw.githubusercontent.com/nrp-nautilus/nairr-tutorial/main/scripts/milvus_rag_qaic.py
-  OPENAI_API_BASE=http://qaic-vllm-server:8000/v1 python3 milvus_rag_qaic.py'
+kubectl delete -n nrp-training-k8s -f yamls/pytorch-training.yaml --ignore-not-found
+kubectl delete -n nrp-training-k8s -f yamls/tgi-inference.yaml    --ignore-not-found
+kubectl delete -n nrp-training-k8s -f yamls/milvus-rag.yaml       --ignore-not-found
 ```
 
-The script uses the same Milvus credentials and collection; only the generative step uses the Qualcomm vLLM server.
+Stop any `kubectl port-forward` processes, exit the opencode session, and you're done.
 
-## C.4 Milvus cleanup
+---
 
-Delete the Milvus RAG pod and, if used, the QAIC vLLM server. To free your Milvus database quota you can also drop the demo collections:
-
-```bash
-kubectl delete -n nrp-training-k8s -f yamls/milvus-rag.yaml --ignore-not-found
-kubectl delete -n nrp-training-k8s -f yamls/qaic-vllm-server.yaml --ignore-not-found
-
-# Optional: drop the demo collections from Milvus
-python3 - <<'PY'
-import os
-from pymilvus import connections, utility
-connections.connect(host=os.environ["MILVUS_HOST"], port=os.environ["MILVUS_PORT"],
-                    user=os.environ["MILVUS_USER"], password=os.environ["MILVUS_PASSWORD"],
-                    secure=os.environ.get("MILVUS_SECURE","true").lower()=="true",
-                    db_name=os.environ["MILVUS_DB_NAME"])
-for c in ("simple_rag_example", "nrp_docs_rag"):
-    if utility.has_collection(c):
-        utility.drop_collection(c); print("dropped", c)
-PY
-```
-
-
-# End — final checklist
-
-- Make sure no GPU/QAIC pods are still running unintentionally — they are a shared resource.
-- `helm uninstall` any H2O release you created.
-- Stop any `kubectl port-forward` processes you started.
-
-**Need help?** [Full docs](https://nrp.ai/documentation/) · [Matrix chat](https://nrp.ai/contact/) · [FAQ](https://nrp.ai/documentation/userdocs/start/faq/) · [LLM token](https://nrp.ai/llmtoken)
-
-**Related docs:** [Managed LLMs](https://nrp.ai/documentation/userdocs/ai/llm-managed/) · [Models](https://nrp.ai/documentation/userdocs/ai/llm-managed/models/) · [LLM API](https://nrp.ai/documentation/userdocs/ai/llm-managed/api-access/) · [LLM in JupyterHub](https://nrp.ai/documentation/userdocs/ai/llm-jupyterhub/) · [Vector DB (Milvus)](https://nrp.ai/documentation/userdocs/vector-database/) · [Qualcomm AI 100](https://nrp.ai/documentation/userdocs/qaic/) · [GPU pods](https://nrp.ai/documentation/userdocs/running/gpu-pods/) · [Sci images](https://nrp.ai/documentation/userdocs/running/sci-img/)
+**Need help?** [Full docs](https://nrp.ai/documentation/) · [Matrix chat](https://nrp.ai/contact/) · [LLM token](https://nrp.ai/llmtoken) · [Milvus password](https://nrp.ai/milvus) · [Models](https://nrp.ai/documentation/userdocs/ai/llm-managed/models/) · [Client configs](https://nrp.ai/documentation/userdocs/ai/llm-managed/client-configs/)
