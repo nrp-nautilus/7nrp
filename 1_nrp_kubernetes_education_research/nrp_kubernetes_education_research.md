@@ -16,7 +16,7 @@ YAMLs referenced in this tutorial live in this directory's [`yamls/`](yamls) fol
 
 The National Research Platform (NRP) is a partnership of 50+ institutions providing an open, nationally distributed cyberinfrastructure built on a Kubernetes cluster named **Nautilus** — 500+ nodes, 1500+ GPUs (NVIDIA A10/A100/H100, Qualcomm Cloud AI 100 Ultra), 50+ FPGAs, in continuous operation for six years. Researchers and educators access it via Kubernetes namespaces, with persistent storage on Ceph and shared services for JupyterHub, GitLab, Coder, and S3.
 
-> **Slide deck:** the instructor's overview of NRP and JupyterHub is presented live during the workshop and posted as a PDF in this directory afterward. This markdown is the hands-on companion that runs *after* the slides.
+> **Slide deck:** [`NRP-Overview-Jupyter.pdf`](NRP-Overview-Jupyter.pdf) — the instructor's overview of NRP and JupyterHub. This markdown is the hands-on companion that runs *after* the slides.
 
 ---
 ## Interacting with NRP
