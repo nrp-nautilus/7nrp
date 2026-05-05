@@ -34,7 +34,12 @@ NRP exposes GPUs to users in two complementary ways:
 - [https://nrp-openwebui.nrp-nautilus.io](https://nrp-openwebui.nrp-nautilus.io) — Open WebUI
 - [https://librechat.nrp-nautilus.io](https://librechat.nrp-nautilus.io) — LibreChat
 
-> ⚠️ The rest of this tutorial uses a **workshop token** that we have already loaded into the `nrp-training-k8s` namespace as the `nrp-llm-token` secret (keys: `OPENAI_API_KEY`, `OPENAI_API_BASE`). Inside the workshop JupyterHub, both env variables are already exported for you. Outside the workshop, mint your own at [https://nrp.ai/llmtoken](https://nrp.ai/llmtoken).
+> 🔑 **Workshop token & endpoint.** Every example below uses these two values verbatim — copy them once:
+>
+> - **API base URL:** `https://ellm.nrp-nautilus.io/v1`
+> - **Bearer token:** `N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj`
+>
+> They are already exported as `OPENAI_API_BASE` / `OPENAI_API_KEY` inside the workshop JupyterHub and inside any pod that mounts the `nrp-llm-token` Secret in `nrp-training-k8s`. After the workshop, mint your own token at [https://nrp.ai/llmtoken](https://nrp.ai/llmtoken) and substitute it in.
 
 ---
 
@@ -70,19 +75,13 @@ Write a Python one-liner that prints the first 20 Fibonacci numbers.
 
 ## 3. Talk to the LLM with `curl`
 
-The endpoint is OpenAI-compatible — anything that speaks OpenAI's REST API speaks NRP. Open a terminal in JupyterLab (or any shell with `curl`):
-
-```bash
-# In JupyterHub these are already exported. Outside, set them yourself:
-# export OPENAI_API_KEY=<your-token-from-nrp.ai/llmtoken>
-# export OPENAI_API_BASE=https://ellm.nrp-nautilus.io/v1
-echo "$OPENAI_API_BASE"
-```
+The endpoint is OpenAI-compatible — anything that speaks OpenAI's REST API speaks NRP. Open a terminal in JupyterLab (or any shell with `curl`).
 
 **List models:**
 
 ```bash
-curl -s -H "Authorization: Bearer $OPENAI_API_KEY" "$OPENAI_API_BASE/models" | python3 -m json.tool | head -30
+curl -s -H "Authorization: Bearer N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj" \
+     https://ellm.nrp-nautilus.io/v1/models | python3 -m json.tool | head -30
 ```
 
 **Expected output:**
@@ -103,8 +102,8 @@ curl -s -H "Authorization: Bearer $OPENAI_API_KEY" "$OPENAI_API_BASE/models" | p
 **Send a chat completion:**
 
 ```bash
-curl -s -X POST "$OPENAI_API_BASE/chat/completions" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
+curl -s -X POST https://ellm.nrp-nautilus.io/v1/chat/completions \
+  -H "Authorization: Bearer N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "minimax-m2",
@@ -118,8 +117,8 @@ curl -s -X POST "$OPENAI_API_BASE/chat/completions" \
 **Stream tokens** (add `"stream": true` and read SSE chunks):
 
 ```bash
-curl -sN -X POST "$OPENAI_API_BASE/chat/completions" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
+curl -sN -X POST https://ellm.nrp-nautilus.io/v1/chat/completions \
+  -H "Authorization: Bearer N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj" \
   -H "Content-Type: application/json" \
   -d '{"model":"minimax-m2","stream":true,"messages":[{"role":"user","content":"Count 1 to 5 with a brief reason for each."}]}'
 ```
@@ -141,12 +140,11 @@ python3 -c 'import openai; print(openai.__version__)'
 **Single completion:**
 
 ```python
-import os
 from openai import OpenAI
 
 client = OpenAI(
-    api_key=os.environ["OPENAI_API_KEY"],
-    base_url=os.environ.get("OPENAI_API_BASE", "https://ellm.nrp-nautilus.io/v1"),
+    api_key="N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj",
+    base_url="https://ellm.nrp-nautilus.io/v1",
 )
 
 resp = client.chat.completions.create(
@@ -162,11 +160,12 @@ print(resp.choices[0].message.content)
 **Streaming:**
 
 ```python
-import os
 from openai import OpenAI
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"],
-                base_url=os.environ.get("OPENAI_API_BASE", "https://ellm.nrp-nautilus.io/v1"))
+client = OpenAI(
+    api_key="N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj",
+    base_url="https://ellm.nrp-nautilus.io/v1",
+)
 
 stream = client.chat.completions.create(
     model="minimax-m2",
@@ -213,7 +212,7 @@ cat > ~/.config/opencode/opencode.json <<'JSON'
       "name": "NRP LLM",
       "options": {
         "baseURL": "https://ellm.nrp-nautilus.io/v1",
-        "apiKey": "{env:OPENAI_API_KEY}"
+        "apiKey": "N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj"
       },
       "models": {
         "minimax-m2": { "name": "MiniMax M2"  },
@@ -229,7 +228,7 @@ cat > ~/.config/opencode/opencode.json <<'JSON'
 JSON
 ```
 
-The `{env:OPENAI_API_KEY}` placeholder picks up your shell variable — already set in JupyterHub. Outside, `export OPENAI_API_KEY=…` first.
+The `apiKey` value above is the workshop bearer token from §1 — paste it verbatim. After the workshop, replace it with your own from [https://nrp.ai/llmtoken](https://nrp.ai/llmtoken) (or rewrite as `"{env:OPENAI_API_KEY}"` to read from the environment).
 
 **Make a project directory and launch opencode:**
 
@@ -383,7 +382,7 @@ kubectl exec -it -n nrp-training-k8s tutorial-<username>-vectordb -- bash -c '
   python3 nrp_docs_rag.py --reindex'
 ```
 
-Because `OPENAI_API_BASE` and `OPENAI_API_KEY` are exported in the pod, the script automatically picks the **managed LLM** as the generative backend (default model: `gemma`). Override with `RAG_MODEL=minimax-m2` or any other id from the §1 table.
+The pod gets `OPENAI_API_BASE` (`https://ellm.nrp-nautilus.io/v1`) and `OPENAI_API_KEY` (`N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj`) injected from the `nrp-llm-token` Secret, so the script automatically picks the **managed LLM** as the generative backend (default model: `gemma`). Override with `RAG_MODEL=minimax-m2` or any other id from the §1 table.
 
 **Expected output (real run, ~60–90s including clone):**
 
@@ -407,7 +406,8 @@ pip install -q pymilvus sentence-transformers langchain-text-splitters openai
 export MILVUS_HOST=milvus.nrp-nautilus.io MILVUS_PORT=50051 MILVUS_SECURE=true \
        MILVUS_USER=<your-milvus-user> MILVUS_PASSWORD=<your-milvus-password> \
        MILVUS_DB_NAME=<your-milvus-db>
-# OPENAI_API_BASE / OPENAI_API_KEY are already exported by the hub.
+export OPENAI_API_BASE=https://ellm.nrp-nautilus.io/v1 \
+       OPENAI_API_KEY=N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj
 python3 2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py --reindex
 ```
 
