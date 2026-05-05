@@ -39,28 +39,15 @@ By default, your work executes within Kubernetes **Namespaces**. These virtual p
 
 - **Storage:** CephFS, CVMFS, S3
 - **Monitoring:** PerfSONAR, traceroute, Prometheus
-- **Compute and data tools:** JupyterHub, WebODM, GitLab, Nextcloud, Overleaf
-- **Collaboration tools:** Jitsi, EtherPad, HedgeDoc, Syncthing
+- **Compute and data tools:** JupyterHub, WebODM, GitLab, Nextcloud 
+- **Collaboration tools:** Jitsi, EtherPad, HedgeDoc, Syncthing, Overleaf
 
 ### Operational history
 
 The Nautilus cluster has been in continuous operation for **6 years**. Its control plane manages worker nodes that run pods and provide the Kubernetes runtime environment.
 
 ---
-
-## Hosted JupyterHub at a glance
-
-NRP runs a [hosted JupyterHub](https://jupyterhub-west.nrp-nautilus.io) you can use with your institutional credentials (CILogon). After logging in, choose the hardware profile for your instance and start running notebooks — no Kubernetes required to begin.
-
-Your home directory (`/home/jovyan`) is a persistent volume, **50GB** by default; don't fill it up or your next Jupyter session may not start. You can request more space or use [CephFS](https://nrp.ai/documentation/userdocs/storage/ceph) for larger or shared workloads. The server will shut down about **1 hour** after your browser disconnects, so keep a tab open or use a stable connection if you need long-running work.
-
-For available images and custom setups, see the [scientific images](https://nrp.ai/documentation/userdocs/running/sci-img/) guide and [TensorFlow with Jupyter](https://nrp.ai/documentation/userdocs/jupyter/jupyter-pod/). More detail: [JupyterHub service](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub-service/).
-
-**Hands-on:** Open [JupyterHub](https://jupyterhub-west.nrp-nautilus.io) (or [training JupyterHub](https://training.nrp-nautilus.io) for the tutorial), log in with CILogon, and spawn an instance with your chosen profile to start using the platform.
-
----
-
-# Interacting with NRP
+## Interacting with NRP
 
 ![Top Uses](../images/TopUse.png)
 
@@ -69,10 +56,20 @@ The majority of NRP users interact with the cluster using the following three me
 - **Coder**: Launch a browser-based VS Code environment connected to cluster resources for interactive development and execution.
 - **Jupyterhub**: Start a JupyterLab notebook server on the cluster for interactive analysis, prototyping, and teaching workflows.
 
-Today, we will be using two of these services. We will launch a jupyterhub server. From the jupyterhub server, we will interact with kubernetes directly using the hub's terminal. 
+---
 
+## Hosted JupyterHub at a glance
 
-In this tutorial we focus on `kubectl`. You have **two ways** to run it for the workshop — pick whichever fits how you like to work:
+NRP runs a hosted JupyterHub at https://jupyterhub-west.nrp-nautilus.io you can use with your institutional credentials (CILogon). After logging in, choose the hardware profile for your instance and start running notebooks — no Kubernetes required to begin.
+
+Your home directory (`/home/jovyan`) is a persistent volume, **5GB** by default; don't fill it up or your next Jupyter session may not start. You can request more space or use [CephFS](https://nrp.ai/documentation/userdocs/storage/ceph) for larger or shared workloads. The server will shut down about **1 hour** after your browser disconnects, so keep a tab open or use a stable connection if you need long-running work.
+
+For available images and custom setups, see the [scientific images](https://nrp.ai/documentation/userdocs/running/sci-img/) guide and [TensorFlow with Jupyter](https://nrp.ai/documentation/userdocs/jupyter/jupyter-pod/). More detail: [JupyterHub service](https://nrp.ai/documentation/userdocs/jupyter/jupyterhub-service/).
+
+>**Hands-on:** Open the [training JupyterHub](https://training.nrp-nautilus.io) for the tutorial), log in with CILogon, and spawn an instance with your chosen profile to start using the platform. Optionally follow the instructions below to install kubectl on your laptop.
+
+---
+
 
 ### Option 1 — Use the training JupyterHub (zero install, recommended)
 
