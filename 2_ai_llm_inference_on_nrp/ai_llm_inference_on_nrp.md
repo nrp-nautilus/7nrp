@@ -240,20 +240,22 @@ opencode
 This drops you into the opencode TUI. Press `/` to open the prompt and paste:
 
 ```
-Write a single-file Python program chess.py that lets two humans play chess in
-the terminal. Use the python-chess library. Render the board after every move
-using board.unicode(). Accept moves in SAN (e.g., "e4", "Nf3"). When the game
-ends, print the result. Add a top-of-file docstring. After writing the file,
-add a requirements.txt with python-chess pinned, and tell me the exact
-commands to install and play.
+Write a single-file Python program chess_game.py that lets two humans play
+chess in the terminal. Use the python-chess library. Render the board after
+every move using board.unicode(). Accept moves in SAN (e.g., "e4", "Nf3").
+When the game ends, print the result. Add a top-of-file docstring. After
+writing the file, add a requirements.txt pinning python-chess to 1.999, and
+tell me the exact commands to install and play.
 ```
 
-opencode plans, writes `chess.py` and `requirements.txt`, and prints the run instructions. **Run them:**
+opencode plans, writes `chess_game.py` and `requirements.txt`, and prints the run instructions. **Run them:**
 
 ```bash
 pip install -r requirements.txt
-python chess.py
+python chess_game.py
 ```
+
+> ⚠️ **Don't name the file `chess.py`** — it shadows the `python-chess` package. `import chess` then re-imports your script and `chess.Board()` raises `AttributeError`. Models will sometimes pick `chess.py` anyway because the prompt says "chess game"; if that happens, just rename. Also, models have been known to invent versions like `python-chess==1.10.0` that do not exist on PyPI — the actual current pin is `python-chess==1.999`. The instruction above pre-pins to avoid the round-trip; if you skipped it, fix `requirements.txt` by hand and re-`pip install`.
 
 Try a few moves (`e4`, `e5`, `Nf3`, …). Press `Ctrl+C` to quit.
 
