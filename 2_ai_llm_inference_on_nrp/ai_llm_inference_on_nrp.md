@@ -519,21 +519,23 @@ Pick one or the other based on the deployment context — **same code, same retr
 
 #### Stage 6 (optional) — Run from JupyterHub instead of a GPU pod
 
-If you only want to demo the workflow and skip the GPU pod entirely, the JupyterHub server pod already has `OPENAI_API_BASE` / `OPENAI_API_KEY` injected — only the Milvus creds are missing. Build a venv so you don't disturb the system Python:
+If you only want to demo the workflow and skip the GPU pod entirely, the JupyterHub server pod already has `OPENAI_API_BASE` / `OPENAI_API_KEY` injected — only the Milvus creds are missing. Build a venv with `--system-site-packages` so it **inherits** the hub's pre-built `torch`/`torchvision`/`transformers` (a plain `python3 -m venv` would force pip to pull a new `torch`, which can mismatch the resident `torchvision` and break `sentence-transformers`):
 
 ```bash
-python3 -m venv ~/.venv-rag && source ~/.venv-rag/bin/activate
+python3 -m venv --system-site-packages ~/.venv-rag
+source ~/.venv-rag/bin/activate
 pip install -q pymilvus sentence-transformers langchain-text-splitters openai
 
-# Milvus creds — copy from kubectl get secret in another terminal, or paste yours
+# Milvus creds — paste yours, or copy from kubectl get secret -n nrp-training-k8s
+# nrp-training-milvus-credentials -o jsonpath in another terminal.
 export MILVUS_HOST=milvus.nrp-nautilus.io MILVUS_PORT=50051 MILVUS_SECURE=true \
        MILVUS_USER=<your-milvus-user> MILVUS_PASSWORD=<your-milvus-password> \
        MILVUS_DB_NAME=<your-milvus-db>
 
-python3 2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py --reindex
+python nrp_docs_rag.py --only-ask --ask "How do I get a Milvus database password on NRP?"
 ```
 
-This path runs embeddings on the hub's CPU (slower — ~3 minutes for 962 chunks) and skips Ollama entirely (the hub has no GPU). Useful for a classroom where students should not each spawn an A10.
+If you have not yet built the index (i.e. nobody in the namespace has ever run Stage 2), add `--reindex` once. Embeddings then run on the hub's CPU — slower than Stage 2 (~3 minutes for 962 chunks vs ~25 s on the A10) but completely GPU-free. The Ollama half of Stages 4–5 is unavailable here (the hub has no GPU); use Stage 4 only inside the GPU pod.
 
 #### Cleanup
 
