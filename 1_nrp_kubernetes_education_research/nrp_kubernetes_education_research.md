@@ -76,6 +76,9 @@ For available images and custom setups, see the [scientific images](https://nrp.
 The workshop hub at [https://training.nrp-nautilus.io](https://training.nrp-nautilus.io) is pre-configured: every spawned JupyterLab pod has `kubectl` installed and a kubeconfig wired to the same `jupyterhub-sa` identity. Open a terminal in JupyterLab and start running `kubectl` immediately — no install, no kubeconfig to manage. **Recommended for the workshop.**
 
 ### Option 2 — kubectl on your laptop
+<details>
+<summary>kubectl on your laptop instructions</summary>
+
 
 Use this if you prefer your own terminal. The workshop kubeconfig carries the `jupyterhub-sa` service-account token, the cluster CA, and `nrp-training-k8s` as the default namespace. The embedded token is valid for the duration of 7NRP, through end-of-day Thursday, May 7, 2026.
 
@@ -143,6 +146,8 @@ $env:KUBECONFIG = "$HOME\.kube\config" ; `
 kubectl config use-context nrp-training-k8s ; `
 kubectl auth whoami
 ```
+</details>
+<div style="height: 2em;"></div>
 
 After these three commands, `kubectl auth whoami` should print `system:serviceaccount:nrp-training:jupyterhub-sa`. Your default namespace is now `nrp-training-k8s` for every subsequent `kubectl` call — switch back to your prior context any time with `kubectl config use-context <name>`.
 
