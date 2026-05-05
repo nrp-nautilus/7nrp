@@ -1,3 +1,5 @@
+# Simple ubuntu pod that prints a greeting and stays alive for an hour.
+# Replace <username> in the name before applying.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -6,12 +8,8 @@ metadata:
 spec:
   containers:
   - name: mypod
-    image: ubuntu
-    resources:
-      limits:
-        memory: 100Mi
-        cpu: 100m
-      requests:
-        memory: 100Mi
-        cpu: 100m
+    image: ubuntu:22.04
     command: ["sh", "-c", "echo 'Hello from NRP!' && sleep 3600"]
+    resources:
+      limits:  { memory: 100Mi, cpu: 100m }
+      requests: { memory: 100Mi, cpu: 100m }

@@ -12,39 +12,11 @@ YAMLs referenced in this tutorial live in this directory's [`yamls/`](yamls) fol
 
 ---
 
-## Introduction to the National Research Platform (NRP)
+## Introduction
 
-The National Research Platform (NRP) is a partnership of more than 50 institutions, led by researchers and cyberinfrastructure professionals at UC San Diego, University of Nebraska-Lincoln, and the Massachusetts Green High Performance Computing Center (MGHPCC). The NRP provides an open, nationally distributed cyberinfrastructure built on a Kubernetes cluster named **Nautilus**.
+The National Research Platform (NRP) is a partnership of 50+ institutions providing an open, nationally distributed cyberinfrastructure built on a Kubernetes cluster named **Nautilus** — 500+ nodes, 1500+ GPUs (NVIDIA A10/A100/H100, Qualcomm Cloud AI 100 Ultra), 50+ FPGAs, in continuous operation for six years. Researchers and educators access it via Kubernetes namespaces, with persistent storage on Ceph and shared services for JupyterHub, GitLab, Coder, and S3.
 
-Nautilus pools heterogeneous hardware components — spanning compute, storage, and specialized accelerators like NVIDIA GPUs and Qualcomm Cloud AI devices — from contributing partners into a unified computing framework. Researchers access these resources through namespaces, allocating storage, running persistent applications, or executing temporary batch jobs.
-
-### Available Compute Resources
-
-Nautilus features a wide variety of computational resources:
-- Standard x86 CPUs and high-memory CPU nodes.
-- Diverse **NVIDIA GPUs** (e.g., A10, A100, RTX 3090/4090, H100) accessible for demanding parallel computing tasks and machine learning.
-- Advanced hardware accelerators like **Qualcomm Cloud AI 100 Ultra SoCs** natively mapped as standard Kubernetes resources via Device Plugins.
-
-### Storage and Namespaces
-
-By default, your work executes within Kubernetes **Namespaces**. These virtual partitions securely isolate compute workloads and data allocation models across distinct projects. A typical workload utilizes **Persistent Volume Claims (PVCs)** built mostly upon Ceph instances distributed globally. This mechanism allows stateful data generation mapped safely against node eviction policies.
-
-### Scale
-
-- **500+ nodes**
-- **1500+ GPUs**
-- **50+ FPGAs**
-
-### Capabilities
-
-- **Storage:** CephFS, CVMFS, S3
-- **Monitoring:** PerfSONAR, traceroute, Prometheus
-- **Compute and data tools:** JupyterHub, WebODM, GitLab, Nextcloud 
-- **Collaboration tools:** Jitsi, EtherPad, HedgeDoc, Syncthing, Overleaf
-
-### Operational history
-
-The Nautilus cluster has been in continuous operation for **6 years**. Its control plane manages worker nodes that run pods and provide the Kubernetes runtime environment.
+> **Slide deck:** [`NRP-Overview-Jupyter.pptx`](NRP-Overview-Jupyter.pptx) — the instructor's overview of NRP and JupyterHub. This markdown is the hands-on companion that runs *after* the slides.
 
 ---
 ## Interacting with NRP
@@ -155,31 +127,6 @@ After these three commands, `kubectl auth whoami` should print `system:serviceac
 
 ---
 
-## GPUs on NRP
-
-There are many types of GPU available on NRP. You can view live availability of all resources at [https://nrp.ai/viz/resources/](https://nrp.ai/viz/resources/).
-
-### Hands-on: Explore GPU options on NRP
-```bash
-# print list of NRP nodes with GPU label
-kubectl get nodes -L nvidia.com/gpu.product
-```
-
-<details>
-  <summary>Click to reveal sample output</summary>
-
-```
-NAME                                         STATUS   ROLES            AGE      VERSION    GPU.PRODUCT
-aarch64.calit2.optiputer.net                 Ready    <none>           2y234d   v1.33.8
-admiralty-ncmir-mm-expanse-7d43bc97a0        Ready    cluster,master   13d
-cenic-nrp1.hpc.cpp.edu                       Ready    <none>           17d      v1.33.8    NVIDIA-RTX-A6000
-chi-dgx-node01.csuchico.edu                  Ready    <none>           165d     v1.33.8    Tesla-V100-SXM2-16GB
-clu-fiona2.ucmerced.edu                      Ready    <none>           122d     v1.33.8    NVIDIA-GeForce-GTX-1080-Ti
-```
-</details>
-
----
-
 ## Kubernetes basics (quick intro)
 
 Kubernetes is a system for running applications on a cluster by managing **workloads** (things you want to run) and keeping them in the desired state.
@@ -242,6 +189,51 @@ NRP note:
 - NRP GitLab provides a container registry (public or private depending on repo settings).
 - You can push local images to GitLab's registry, or build/publish images using GitLab CI/CD.
 
+### kubectl flags you'll reach for constantly
+
+| Flag | Purpose |
+|---|---|
+| `-n <namespace>` | Target a specific namespace. Drop it once your kubeconfig has a default namespace set. |
+| `-l key=value` | Filter resources by label (e.g. `kubectl get pods -l app=hello-deploy-alice`). |
+| `-A` / `--all-namespaces` | Show resources across every namespace you can read. |
+| `-w` / `--watch` | Stream live updates instead of a one-shot list. Ctrl-C to stop. |
+| `-o wide` | Add columns: node, pod IP, container image, etc. |
+| `-o yaml` / `-o json` | Print the full resource manifest (great with `\| less`). |
+| `-o jsonpath='{...}'` | Extract one field, e.g. `-o jsonpath='{.items[0].spec.nodeName}'`. |
+| `--show-labels` | Append a column with every label a resource carries. |
+| `--field-selector` | Filter on built-in fields (e.g. `--field-selector=status.phase=Running`). |
+| `--previous` (on `kubectl logs`) | Logs from the *previous* container instance — essential for crashloops. |
+
+### Gatekeeper: why every example sets requests and limits
+
+Nautilus runs a cluster-wide Gatekeeper policy that **rejects pods that omit CPU or memory requests/limits, and rejects pods where the limit/request ratio exceeds 1.2×**. Every YAML in this tutorial sets `requests == limits` so you never trip it. If you copy-paste a manifest from upstream Kubernetes docs and it gets rejected, this is almost always why.
+
+---
+
+## GPUs on NRP
+
+NRP carries many types of GPU. View live availability at <https://nrp.ai/viz/resources/>. Now that you have `kubectl`, you can also list every node and its GPU label directly:
+
+```bash
+kubectl get nodes -L nvidia.com/gpu.product
+```
+
+<details>
+  <summary>Sample output</summary>
+
+```
+NAME                                         STATUS   ROLES            AGE      VERSION    GPU.PRODUCT
+aarch64.calit2.optiputer.net                 Ready    <none>           2y234d   v1.33.8
+admiralty-ncmir-mm-expanse-7d43bc97a0        Ready    cluster,master   13d
+cenic-nrp1.hpc.cpp.edu                       Ready    <none>           17d      v1.33.8    NVIDIA-RTX-A6000
+chi-dgx-node01.csuchico.edu                  Ready    <none>           165d     v1.33.8    Tesla-V100-SXM2-16GB
+clu-fiona2.ucmerced.edu                      Ready    <none>           122d     v1.33.8    NVIDIA-GeForce-GTX-1080-Ti
+…
+```
+</details>
+
+The empty `GPU.PRODUCT` column is for CPU-only nodes; populated rows show what NVIDIA SKU each GPU node carries. We'll come back to this when we look at scheduling primitives later in the tutorial.
+
 ---
 
 ## Hands-on: kubectl basics and a simple pod
@@ -252,69 +244,96 @@ YAML files are in this directory's [`yamls/`](yamls) folder. Find `test-pod.yaml
 
 ### Creating a simple pod
 
-Edit `yamls/test-pod.yaml` to give the pod a unique **name**.
+Open `yamls/test-pod.yaml` and replace `<username>` (in `metadata.name`) with your NRP / GitHub handle. The full file:
 
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
   name: test-pod-<username>
+  namespace: nrp-training-k8s
 spec:
   containers:
   - name: mypod
-    image: ubuntu
-    resources:
-      limits:
-        memory: 100Mi
-        cpu: 100m
-      requests:
-        memory: 100Mi
-        cpu: 100m
+    image: ubuntu:22.04
     command: ["sh", "-c", "echo 'Hello from NRP!' && sleep 3600"]
+    resources:
+      limits:  { memory: 100Mi, cpu: 100m }
+      requests: { memory: 100Mi, cpu: 100m }
 ```
 
-Launch this pod:
+Notice `requests` and `limits` are identical. Nautilus runs a Gatekeeper policy that rejects pods missing either, and rejects pods where the limit/request ratio exceeds 1.2. Setting them equal is the safe default.
+
+Launch the pod:
 
 ```bash
-kubectl apply -f yamls/test-pod.yaml
+kubectl apply -n nrp-training-k8s -f yamls/test-pod.yaml
 ```
 
-Check whether you were successful:
+<details>
+<summary>Expected output</summary>
+
+```
+pod/test-pod-<username> created
+```
+</details>
+
+Check whether the pod is running:
 
 ```bash
-kubectl get pods
-# get detailed pod information
-kubectl get pod test-pod-<username> -o wide
+kubectl get pods -n nrp-training-k8s
+kubectl get pod test-pod-<username> -n nrp-training-k8s -o wide
 ```
 
-Look at the logs associated with this pod:
+<details>
+<summary>Expected output (after ~5–10 seconds)</summary>
+
+```
+NAME                  READY   STATUS    RESTARTS   AGE
+test-pod-<username>   1/1     Running   0          12s
+```
+</details>
+
+Look at its logs:
 
 ```bash
-kubectl logs test-pod-<username>
+kubectl logs test-pod-<username> -n nrp-training-k8s
 ```
 
-View detailed pod information:
+<details>
+<summary>Expected output</summary>
+
+```
+Hello from NRP!
+```
+</details>
+
+Run a command inside it (without an interactive shell):
 
 ```bash
-kubectl describe pod test-pod-<username>
+kubectl exec test-pod-<username> -n nrp-training-k8s -- echo 'Command executed successfully'
 ```
 
-Execute a command in the pod:
+Open an interactive shell (Ctrl-D to exit):
 
 ```bash
-kubectl exec test-pod-<username> -- echo 'Command executed successfully'
+kubectl exec -it test-pod-<username> -n nrp-training-k8s -- /bin/bash
 ```
 
-Get an interactive shell into the pod:
-
-```bash
-kubectl exec -it test-pod-<username> -- /bin/bash
-```
+> **Debugging trio.** When something doesn't behave the way you expect, three commands are your defaults:
+>
+> ```bash
+> kubectl describe pod test-pod-<username> -n nrp-training-k8s          # status + last events
+> kubectl get events -n nrp-training-k8s --sort-by=.metadata.creationTimestamp | tail -20
+> kubectl logs test-pod-<username> -n nrp-training-k8s --previous        # logs from the prior crash
+> ```
+>
+> `describe` shows scheduling decisions, container state, and the last few events for that one resource. `get events` shows the full namespace timeline. `--previous` is essential for crashlooping pods — `logs` only shows the current container's stream.
 
 Finally, clean up the pod to free resources:
 
 ```bash
-kubectl delete pod test-pod-<username>
+kubectl delete pod test-pod-<username> -n nrp-training-k8s
 ```
 
 ---
@@ -342,25 +361,37 @@ Pods are ephemeral — anything written to the container filesystem disappears w
 Open `yamls/pvc.yaml`. It contains both a 1 GiB PVC and a small writer pod that mounts it at `/data`. Replace `<username>` in both names, then apply:
 
 ```bash
-kubectl apply -f yamls/pvc.yaml
-kubectl get pvc
-kubectl get pod pvc-pod-<username>
+kubectl apply -n nrp-training-k8s -f yamls/pvc.yaml
+kubectl get pvc -n nrp-training-k8s
+kubectl get pod pvc-pod-<username> -n nrp-training-k8s
 ```
+
+<details>
+<summary>Expected output (Ceph provisioning takes ~30–60s on first claim)</summary>
+
+```
+NAME             STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS           AGE
+pvc-<username>   Bound    pvc-99a63070-eb3d-490a-82fd-4e5811e4a5df   1Gi        RWO            rook-ceph-block-east   45s
+
+NAME                 READY   STATUS    RESTARTS   AGE
+pvc-pod-<username>   1/1     Running   0          47s
+```
+</details>
 
 The PVC starts in `Pending` and flips to `Bound` once the volume is provisioned. Watch the writer pod append a line to the volume on every restart, then read it back:
 
 ```bash
-kubectl logs -f pvc-pod-<username>
+kubectl logs -f pvc-pod-<username> -n nrp-training-k8s
 # in another terminal:
-kubectl exec pvc-pod-<username> -- cat /data/log.txt
+kubectl exec pvc-pod-<username> -n nrp-training-k8s -- cat /data/log.txt
 ```
 
 Now delete the pod and recreate just the pod (not the PVC) to prove the data survives. The simplest way is to delete only the pod and re-apply:
 
 ```bash
-kubectl delete pod pvc-pod-<username>
-kubectl apply -f yamls/pvc.yaml          # recreates the pod; the PVC is unchanged
-kubectl exec pvc-pod-<username> -- cat /data/log.txt   # the previous line is still there
+kubectl delete pod pvc-pod-<username> -n nrp-training-k8s
+kubectl apply -n nrp-training-k8s -f yamls/pvc.yaml          # recreates the pod; the PVC is unchanged
+kubectl exec pvc-pod-<username> -n nrp-training-k8s -- cat /data/log.txt   # the previous line is still there
 ```
 
 **Don't delete the PVC yet** — the next section reuses `pvc-<username>` to demonstrate a multi-container pod. If you're skipping ahead, clean up with `kubectl delete -f yamls/pvc.yaml`.
@@ -380,39 +411,72 @@ A pod can hold more than one container — they share the network namespace (sam
 Before applying, delete the writer pod from the PVC section so the volume detaches — `rook-ceph-block-east` is `ReadWriteOnce`, so two pods on different nodes cannot mount it simultaneously:
 
 ```bash
-kubectl delete pod pvc-pod-<username> --ignore-not-found
+kubectl delete pod pvc-pod-<username> -n nrp-training-k8s --ignore-not-found
 ```
 
 Replace `<username>` in `multicontainer.yaml` (in the pod name **and** in `claimName`), then apply:
 
 ```bash
-kubectl apply -f yamls/multicontainer.yaml
-kubectl get pod sidecar-<username>
+kubectl apply -n nrp-training-k8s -f yamls/multicontainer.yaml
+kubectl get pod sidecar-<username> -n nrp-training-k8s
 ```
 
-`READY` shows `2/2` once both containers are running. Inspect the container list:
+<details>
+<summary>Expected output (READY shows 2/2 once both containers are up)</summary>
+
+```
+NAME                READY   STATUS    RESTARTS   AGE
+sidecar-<username>  2/2     Running   0          25s
+```
+</details>
+
+Inspect the container list:
 
 ```bash
-kubectl get pod sidecar-<username> -o jsonpath='{.spec.containers[*].name}'
-# → writer reader
+kubectl get pod sidecar-<username> -n nrp-training-k8s -o jsonpath='{.spec.containers[*].name}' ; echo
 ```
+
+<details>
+<summary>Expected output</summary>
+
+```
+writer reader
+```
+</details>
 
 Now read each container's log stream **separately** with `-c`:
 
 ```bash
-kubectl logs sidecar-<username> -c writer  --tail=5
-kubectl logs sidecar-<username> -c reader  --tail=5
+kubectl logs sidecar-<username> -c writer -n nrp-training-k8s --tail=5
+kubectl logs sidecar-<username> -c reader -n nrp-training-k8s --tail=5
 # follow one of them in real time
-kubectl logs -f sidecar-<username> -c reader
+kubectl logs -f sidecar-<username> -c reader -n nrp-training-k8s
 ```
+
+<details>
+<summary>Expected output</summary>
+
+```
+# writer (the producer — also echoed to its own stdout):
+writer-tick 1 04:55:58
+writer-tick 2 04:56:04
+writer-tick 3 04:56:09
+
+# reader (tailing the shared file from a different process):
+reader started, tailing /shared/data.log
+writer-tick 1 04:55:58
+writer-tick 2 04:56:04
+writer-tick 3 04:56:09
+```
+</details>
 
 The reader's output proves both containers see the same file: every line the writer appends shows up in the reader's stream within a couple of seconds. Default `kubectl logs sidecar-<username>` (no `-c`) only works on single-container pods; on a multi-container pod kubectl will refuse and ask you to pick.
 
 Clean up — this also releases the PVC if you no longer need it:
 
 ```bash
-kubectl delete -f yamls/multicontainer.yaml
-kubectl delete -f yamls/pvc.yaml
+kubectl delete -n nrp-training-k8s -f yamls/multicontainer.yaml
+kubectl delete -n nrp-training-k8s -f yamls/pvc.yaml
 ```
 
 > **Why use a multi-container pod instead of two pods?** Two pods are isolated — no shared filesystem, no shared `localhost`. Use a single pod with two containers when the workloads are tightly coupled (a model server + its prometheus exporter, a training loop + a checkpoint shipper). Use separate pods otherwise.
@@ -430,11 +494,10 @@ You can mount either as files or expose them as environment variables. We'll do 
 `yamls/configmap-secret.yaml` ships three objects in one file: a ConfigMap (`GREETING`, `SERVER_PORT`), a Secret (`API_TOKEN`), and a Pod that pulls **all** ConfigMap keys in bulk via `envFrom` and pulls the Secret value via an explicit `secretKeyRef`. Replace `<username>` in all four names and apply:
 
 ```bash
-kubectl apply -f yamls/configmap-secret.yaml
-kubectl get configmap,secret,pod -l app=env-demo  # (no labels yet — uses get by name below)
-kubectl get configmap app-config-<username>
-kubectl get secret    app-secret-<username>
-kubectl get pod       env-pod-<username>
+kubectl apply -n nrp-training-k8s -f yamls/configmap-secret.yaml
+kubectl get configmap app-config-<username> -n nrp-training-k8s
+kubectl get secret    app-secret-<username> -n nrp-training-k8s
+kubectl get pod       env-pod-<username>    -n nrp-training-k8s
 ```
 
 Once the pod is running, check what it printed:
@@ -465,7 +528,7 @@ Notice the Secret value comes back base64-encoded — that's storage format, not
 Clean up:
 
 ```bash
-kubectl delete -f yamls/configmap-secret.yaml
+kubectl delete -n nrp-training-k8s -f yamls/configmap-secret.yaml
 ```
 
 > **Files vs env vars.** Mounting a Secret as a file (`volumeMounts` + `volumes.secret`) is preferable when the value is a multi-line credential (TLS cert, kubeconfig, JSON service account) or when you want updates to roll into the running pod automatically. Env vars are fixed at pod start.
@@ -479,25 +542,52 @@ A **Deployment** keeps a set of identical pods running. It spawns a ReplicaSet t
 Open `yamls/deployment.yaml`, replace `<username>` everywhere, and apply:
 
 ```bash
-kubectl apply -f yamls/deployment.yaml
-kubectl get deploy,rs,pod -l app=hello-deploy-<username>
+kubectl apply -n nrp-training-k8s -f yamls/deployment.yaml
+kubectl get deploy,rs,pod -n nrp-training-k8s -l app=hello-deploy-<username>
 ```
+
+<details>
+<summary>Expected output (after ~10s)</summary>
+
+```
+NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/hello-deploy-audit     2/2     2            2           14s
+
+NAME                                              DESIRED   CURRENT   READY   AGE
+replicaset.apps/hello-deploy-audit-6f8c4bb7c7     2         2         2       14s
+
+NAME                                            READY   STATUS    RESTARTS   AGE
+pod/hello-deploy-audit-6f8c4bb7c7-9xw6m         1/1     Running   0          14s
+pod/hello-deploy-audit-6f8c4bb7c7-ttgxv         1/1     Running   0          14s
+```
+</details>
 
 You should see one Deployment, one ReplicaSet, and two Pods. Try the basic operations:
 
 ```bash
 # scale to 4 replicas
-kubectl scale deployment hello-deploy-<username> --replicas=4
-kubectl get pods -l app=hello-deploy-<username>
+kubectl scale deployment hello-deploy-<username> -n nrp-training-k8s --replicas=4
+kubectl get pods -n nrp-training-k8s -l app=hello-deploy-<username>
 
-# delete one pod and watch the Deployment immediately recreate it
-kubectl delete pod -l app=hello-deploy-<username> --field-selector=status.phase=Running --grace-period=0 --force --wait=false | head -1
-kubectl get pods -l app=hello-deploy-<username> -w   # Ctrl-C when you're convinced
+# delete one specific pod and watch the Deployment immediately recreate it
+VICTIM=$(kubectl get pod -n nrp-training-k8s -l app=hello-deploy-<username> -o jsonpath='{.items[0].metadata.name}')
+kubectl delete pod "$VICTIM" -n nrp-training-k8s
+kubectl get pods -n nrp-training-k8s -l app=hello-deploy-<username>   # there are still 4 — a new pod replaced $VICTIM
 
-# rolling update to a new image
-kubectl set image deployment/hello-deploy-<username> hello=nginxdemos/hello:plain-text
-kubectl rollout status deployment/hello-deploy-<username>
+# rolling update to a different image (nginx:alpine, swapping out nginxdemos/hello)
+kubectl set image deployment/hello-deploy-<username> -n nrp-training-k8s hello=nginx:alpine
+kubectl rollout status deployment/hello-deploy-<username> -n nrp-training-k8s
 ```
+
+<details>
+<summary>Expected rollout output</summary>
+
+```
+Waiting for deployment "hello-deploy-<username>" rollout to finish: 2 out of 4 new replicas have been updated...
+Waiting for deployment "hello-deploy-<username>" rollout to finish: 1 old replicas are pending termination...
+deployment "hello-deploy-<username>" successfully rolled out
+```
+</details>
 
 **Don't delete this Deployment yet** — the next section uses one of its running pods to demonstrate `kubectl cp`, `port-forward`, and `patch`.
 
@@ -514,7 +604,7 @@ Three commands you'll reach for constantly once you have something running:
 We'll use a pod from the Deployment you applied above. Pick one:
 
 ```bash
-POD=$(kubectl get pod -l app=hello-deploy-<username> -o jsonpath='{.items[0].metadata.name}')
+POD=$(kubectl get pod -n nrp-training-k8s -l app=hello-deploy-<username> -o jsonpath='{.items[0].metadata.name}')
 echo "$POD"
 ```
 
@@ -524,38 +614,62 @@ Copy a file **into** the pod, then verify with `exec`:
 
 ```bash
 echo "training data v1" > /tmp/dataset.txt
-kubectl cp /tmp/dataset.txt "$POD":/tmp/dataset.txt
-kubectl exec "$POD" -- cat /tmp/dataset.txt
-# → training data v1
+kubectl cp /tmp/dataset.txt nrp-training-k8s/"$POD":/tmp/dataset.txt
+kubectl exec "$POD" -n nrp-training-k8s -- cat /tmp/dataset.txt
 ```
+
+<details>
+<summary>Expected output</summary>
+
+```
+training data v1
+```
+</details>
 
 Copy a file **out** of the pod:
 
 ```bash
-kubectl exec "$POD" -- sh -c 'echo "result $(date -u)" > /tmp/result.txt'
-kubectl cp "$POD":/tmp/result.txt /tmp/result.txt
+kubectl exec "$POD" -n nrp-training-k8s -- sh -c 'echo "result $(date -u)" > /tmp/result.txt'
+kubectl cp nrp-training-k8s/"$POD":/tmp/result.txt /tmp/result.txt
 cat /tmp/result.txt
 ```
 
-> **Caveat:** `kubectl cp` requires `tar` to exist inside the container; minimal images (`alpine`, `distroless`) often don't have it. If you hit "tar not found", fall back to streaming via `kubectl exec` (e.g., `kubectl exec $POD -- cat /path/to/file > local`).
+<details>
+<summary>Expected output</summary>
+
+```
+tar: removing leading '/' from member names    ← warning, harmless
+result Mon May  4 09:37:52 UTC 2026
+```
+</details>
+
+> **Caveat:** `kubectl cp` requires `tar` to exist inside the container; minimal images (`alpine`, `distroless`) often don't have it. If you hit "tar not found", fall back to streaming via `kubectl exec` (e.g., `kubectl exec $POD -n nrp-training-k8s -- cat /path/to/file > local`).
 
 ### kubectl port-forward
 
 Open a tunnel from `localhost:8080` on your laptop to port 80 on the pod:
 
 ```bash
-kubectl port-forward "$POD" 8080:80 &
-PF_PID=$!
+kubectl port-forward "$POD" -n nrp-training-k8s 8080:80
+# in another terminal:
 curl -s http://localhost:8080 | head -3
-kill $PF_PID
+# Ctrl-C in the first terminal to close the tunnel
 ```
 
-Or forward against the **Service** instead of a specific pod (load-balances across replicas, survives pod restarts):
+<details>
+<summary>Expected output (in the curl terminal)</summary>
+
+```
+Server address: 10.244.x.x:80
+Server name: hello-deploy-<username>-6f8c4bb7c7-9xw6m
+Date: 04/May/2026:09:37:52 +0000
+```
+</details>
+
+Or forward against the **Deployment** instead of a specific pod (kubectl picks any ready pod from the Deployment for you, so the tunnel survives pod restarts):
 
 ```bash
-kubectl port-forward deployment/hello-deploy-<username> 8080:80
-# → Forwarding from 127.0.0.1:8080 -> 80
-# leave it running, hit it from another terminal, Ctrl-C when done
+kubectl port-forward deployment/hello-deploy-<username> -n nrp-training-k8s 8080:80
 ```
 
 `port-forward` works on any pod with an open TCP port — it does **not** require a Service or an Ingress, doesn't go through HAProxy, and is per-user (no public URL). Perfect for "I just want to inspect this dashboard from my laptop."
@@ -566,25 +680,35 @@ Change one field without rewriting the whole YAML. Two patch styles:
 
 ```bash
 # strategic merge patch (default) — bump replicas to 3
-kubectl patch deployment hello-deploy-<username> \
+kubectl patch deployment hello-deploy-<username> -n nrp-training-k8s \
   -p '{"spec":{"replicas":3}}'
-kubectl get deployment hello-deploy-<username>
+kubectl get deployment hello-deploy-<username> -n nrp-training-k8s
 
 # add a label to the running deployment
-kubectl patch deployment hello-deploy-<username> \
+kubectl patch deployment hello-deploy-<username> -n nrp-training-k8s \
   -p '{"metadata":{"labels":{"owner":"<username>","env":"workshop"}}}'
 
 # JSON patch — most precise, used when you need to remove or replace at a specific path
-kubectl patch deployment hello-deploy-<username> --type=json \
+kubectl patch deployment hello-deploy-<username> -n nrp-training-k8s --type=json \
   -p='[{"op":"replace","path":"/spec/replicas","value":2}]'
 ```
 
-`kubectl edit deployment hello-deploy-<username>` is the interactive cousin — it opens the current spec in `$EDITOR` and applies the diff when you save.
+<details>
+<summary>Expected output (each patch prints one confirmation line)</summary>
+
+```
+deployment.apps/hello-deploy-<username> patched
+deployment.apps/hello-deploy-<username> patched
+deployment.apps/hello-deploy-<username> patched
+```
+</details>
+
+`kubectl edit deployment hello-deploy-<username> -n nrp-training-k8s` is the interactive cousin — it opens the current spec in `$EDITOR` and applies the diff when you save.
 
 Now clean up the deployment:
 
 ```bash
-kubectl delete -f yamls/deployment.yaml
+kubectl delete -n nrp-training-k8s -f yamls/deployment.yaml
 ```
 
 ---
@@ -596,16 +720,16 @@ A **Job** runs pods until a target number of them complete successfully, then st
 Open `yamls/job.yaml`, replace `<username>`, and apply:
 
 ```bash
-kubectl apply -f yamls/job.yaml
-kubectl get jobs
-kubectl get pods -l job-name=pi-<username>
+kubectl apply -n nrp-training-k8s -f yamls/job.yaml
+kubectl get jobs -n nrp-training-k8s
+kubectl get pods -n nrp-training-k8s -l job-name=pi-<username>
 ```
 
-Stream the result and check completion:
+Stream the result (after about a minute of CPU work) and check completion:
 
 ```bash
-kubectl logs -l job-name=pi-<username>
-kubectl get job pi-<username>
+kubectl logs -n nrp-training-k8s -l job-name=pi-<username>
+kubectl get job pi-<username> -n nrp-training-k8s
 ```
 
 <details>
@@ -616,14 +740,15 @@ kubectl get job pi-<username>
 ```
 ```
 NAME             STATUS     COMPLETIONS   DURATION   AGE
-pi-<username>    Complete   1/1           7s         42s
+pi-<username>    Complete   1/1           53s        57s
 ```
+(Duration depends on which CPU node the Job lands on — expect 50–120s.)
 </details>
 
-The Job is auto-deleted 10 minutes after completion (`ttlSecondsAfterFinished: 600`). To clean up immediately:
+Note: `bpi(2000)` is CPU-bound — expect 50–120 seconds depending on which CPU node the Job lands on. The Job is auto-deleted 10 minutes after completion (`ttlSecondsAfterFinished: 600`). To clean up immediately:
 
 ```bash
-kubectl delete -f yamls/job.yaml
+kubectl delete -n nrp-training-k8s -f yamls/job.yaml
 ```
 
 ---
@@ -640,22 +765,49 @@ NRP runs HAProxy as the cluster ingress controller and **Cert Manager** with Let
 Open `yamls/ingress-demo.yaml` and replace **every** `<username>` (the hostname `hello-<username>.nrp-nautilus.io` must be globally unique). Apply the bundle:
 
 ```bash
-kubectl apply -f yamls/ingress-demo.yaml
-kubectl get deploy,svc,ingress -l k8s-app=hello-web-<username>
+kubectl apply -n nrp-training-k8s -f yamls/ingress-demo.yaml
+kubectl get deploy,svc,ingress -n nrp-training-k8s -l k8s-app=hello-web-<username>
 ```
 
-Wait ~30 seconds for the certificate to be issued, then visit it from your laptop:
+<details>
+<summary>Expected output (after ~10–20 seconds)</summary>
+
+```
+NAME                                READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/hello-web-<username>   2/2     2            2           18s
+
+NAME                          TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+service/hello-web-<username>   ClusterIP   10.107.50.135   <none>        8080/TCP   18s
+
+NAME                                            CLASS     HOSTS                              ADDRESS   PORTS     AGE
+ingress.networking.k8s.io/hello-web-<username>   haproxy   hello-<username>.nrp-nautilus.io             80, 443   18s
+```
+</details>
+
+Wait ~60 seconds for HAProxy to pick up the new Ingress and for Cert Manager + Let's Encrypt to issue the cert, then visit it from your laptop:
 
 ```bash
 curl -sI https://hello-<username>.nrp-nautilus.io | head -5
 ```
 
-You should see `HTTP/2 200`. Open the URL in your browser to see the demo page; reload a few times — the `Server name` line changes as the load balancer cycles between the two replicas.
+<details>
+<summary>Expected output</summary>
+
+```
+HTTP/2 200
+server: nginx/1.29.1
+date: Mon, 04 May 2026 09:42:43 GMT
+content-type: text/plain
+content-length: 165
+```
+</details>
+
+Open the URL in your browser to see the demo page; reload a few times — the `Server name` line changes as the load balancer cycles between the two replicas.
 
 If you only want to test the in-cluster Service without exposing it publicly, you can skip the Ingress and use a port-forward:
 
 ```bash
-kubectl port-forward svc/hello-web-<username> 8080:8080
+kubectl port-forward -n nrp-training-k8s svc/hello-web-<username> 8080:8080
 # in another terminal:
 curl http://localhost:8080
 ```
@@ -663,7 +815,7 @@ curl http://localhost:8080
 Clean up — this also releases the public hostname:
 
 ```bash
-kubectl delete -f yamls/ingress-demo.yaml
+kubectl delete -n nrp-training-k8s -f yamls/ingress-demo.yaml
 ```
 
 > **Using your own domain.** Point a CNAME at `nrp-nautilus.io` (or `east.nrp-nautilus.io`) and add a `tls.secretName` to the Ingress with a TLS Secret you provide. The [Ingress docs](https://nrp.ai/documentation/userdocs/running/ingress/) walk through both options, including auto-issuing your own cert via Cert Manager.
@@ -702,6 +854,22 @@ kubectl get nodes -l nrp-training=true -L nvidia.com/gpu.product
 kubectl get nodes -l nrp-training=true \
   -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.taints}{"\n"}{end}'
 ```
+
+<details>
+<summary>Expected output</summary>
+
+```
+NAME                    STATUS   ROLES    AGE      VERSION    GPU.PRODUCT
+gpu-03.nrp.mghpcc.org   Ready    <none>   3y195d   v1.33.10   NVIDIA-A10
+gpu-11.nrp.mghpcc.org   Ready    <none>   3y195d   v1.33.8    NVIDIA-A10
+gpu-12.nrp.mghpcc.org   Ready    <none>   3y192d   v1.33.8    NVIDIA-A10
+…
+
+gpu-03.nrp.mghpcc.org	[{"effect":"NoSchedule","key":"nautilus.io/reservation","value":"nrp"},{"effect":"PreferNoSchedule","key":"nvidia.com/gpu","value":"Exists"}]
+gpu-11.nrp.mghpcc.org	[{"effect":"NoSchedule","key":"nautilus.io/reservation","value":"nrp"},{"effect":"PreferNoSchedule","key":"nvidia.com/gpu","value":"Exists"}]
+…
+```
+</details>
 
 You should see `nautilus.io/reservation=nrp:NoSchedule` on every reserved node.
 
@@ -773,15 +941,15 @@ Now launch the pod:
 
 ```bash
 # launch single gpu pod
-kubectl apply -f yamls/gpu-pod.yaml
+kubectl apply -n nrp-training-k8s -f yamls/gpu-pod.yaml
 # check that the pod is created
-kubectl get pods
+kubectl get pods -n nrp-training-k8s
 ```
 
 Once the pod is in a ready state, exec into it:
 
 ```bash
-kubectl exec -it tutorial-<username>-gpu-pod -- /bin/bash
+kubectl exec -it tutorial-<username>-gpu-pod -n nrp-training-k8s -- /bin/bash
 ```
 
 Try running `nvidia-smi` from within the pod.
@@ -789,7 +957,7 @@ Try running `nvidia-smi` from within the pod.
 **Important:** Terminate this pod when you are done — GPUs are scarce shared resources:
 
 ```bash
-kubectl delete pod tutorial-<username>-gpu-pod
+kubectl delete pod tutorial-<username>-gpu-pod -n nrp-training-k8s
 ```
 
 <details>
@@ -877,14 +1045,17 @@ Some GPUs are labeled as special resources on the cluster and cannot be schedule
 
 ```bash
 # delete anything you created in this part
-kubectl delete pod test-pod-<username> --ignore-not-found
-kubectl delete -f yamls/multicontainer.yaml --ignore-not-found
-kubectl delete -f yamls/pvc.yaml --ignore-not-found
-kubectl delete -f yamls/configmap-secret.yaml --ignore-not-found
-kubectl delete -f yamls/deployment.yaml --ignore-not-found
-kubectl delete -f yamls/job.yaml --ignore-not-found
-kubectl delete -f yamls/ingress-demo.yaml --ignore-not-found
-kubectl delete pod tutorial-<username>-gpu-pod --ignore-not-found
+kubectl delete pod test-pod-<username>            -n nrp-training-k8s --ignore-not-found
+kubectl delete -f yamls/multicontainer.yaml       -n nrp-training-k8s --ignore-not-found
+kubectl delete -f yamls/pvc.yaml                  -n nrp-training-k8s --ignore-not-found
+kubectl delete -f yamls/configmap-secret.yaml     -n nrp-training-k8s --ignore-not-found
+kubectl delete -f yamls/deployment.yaml           -n nrp-training-k8s --ignore-not-found
+kubectl delete -f yamls/job.yaml                  -n nrp-training-k8s --ignore-not-found
+kubectl delete -f yamls/ingress-demo.yaml         -n nrp-training-k8s --ignore-not-found
+kubectl delete pod tutorial-<username>-gpu-pod    -n nrp-training-k8s --ignore-not-found
+
+# what's left? (use this anytime — "what did I leave running?")
+kubectl get all -n nrp-training-k8s
 ```
 
 **Need help?** [Full docs](https://nrp.ai/documentation/) · [Matrix chat](https://nrp.ai/contact/) · [FAQ](https://nrp.ai/documentation/userdocs/start/faq/) · [Policies](https://nrp.ai/documentation/userdocs/start/policies/)

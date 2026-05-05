@@ -5,6 +5,8 @@ kind: Deployment
 metadata:
   name: hello-deploy-<username>
   namespace: nrp-training-k8s
+  labels:
+    app: hello-deploy-<username>
 spec:
   replicas: 2
   selector:

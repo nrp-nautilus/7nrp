@@ -230,26 +230,26 @@ We'll start with a small CPU-only smoke test (compute π) to see the pattern, th
 
 `yamls/mpi-pi.yaml` defines an MPIJob with one launcher and two workers that compute π using the canonical `mpioperator/mpi-pi` image. It needs no GPUs, so it's a great way to confirm the operator is working.
 
-Edit the file and replace `<name>` with a unique value, then submit:
+Edit the file and replace `<username>` with a unique value, then submit:
 
 ```bash
-kubectl create -f yamls/mpi-pi.yaml
-kubectl get mpijob,pods
+kubectl create -n nrp-training-k8s -f yamls/mpi-pi.yaml
+kubectl get mpijob,pods -n nrp-training-k8s
 ```
 
 Once the launcher pod is `Running`, stream its logs:
 
 ```bash
-kubectl logs -f <name>-mpi-pi-XXXXX-launcher-YYYYY
+kubectl logs -f <username>-mpi-pi-XXXXX-launcher-YYYYY -n nrp-training-k8s
 ```
 
 <details>
   <summary>Click to reveal expected result</summary>
 
 ```
-Rank 1 on host <name>-mpi-pi-4lrz7-worker-1
+Rank 1 on host <username>-mpi-pi-4lrz7-worker-1
 Workers: 2
-Rank 0 on host <name>-mpi-pi-4lrz7-worker-0
+Rank 0 on host <username>-mpi-pi-4lrz7-worker-0
 pi is approximately 3.1410376000000002
 ```
 
@@ -258,8 +258,8 @@ or, if the operator falls back to the launcher-only path:
 ```
 Distributed transport failed; falling back to local launcher-only run for demo reliability...
 Workers: 2
-Rank 0 on host <name>-mpi-pi-jzrvt-launcher
-Rank 1 on host <name>-mpi-pi-jzrvt-launcher
+Rank 0 on host <username>-mpi-pi-jzrvt-launcher
+Rank 1 on host <username>-mpi-pi-jzrvt-launcher
 pi is approximately 3.1410376000000002
 ```
 </details>
@@ -267,14 +267,14 @@ pi is approximately 3.1410376000000002
 Clean up:
 
 ```bash
-kubectl delete mpijob <name>-mpi-pi-XXXXX
+kubectl delete mpijob <username>-mpi-pi-XXXXX
 ```
 
 ### A.5.2 Distributed TensorFlow ResNet-101 benchmark (2× NVIDIA GPUs)
 
 `yamls/mpi-tensorflow.yaml` runs the upstream `mpioperator/tensorflow-benchmarks` image with `tf_cnn_benchmarks.py --model=resnet101 --batch_size=64 --variable_update=horovod`. The launcher coordinates two worker pods, each holding **one NVIDIA GPU**, and they exchange gradients via Horovod over MPI.
 
-Edit `yamls/mpi-tensorflow.yaml`, replace `<name>`, and submit:
+Edit `yamls/mpi-tensorflow.yaml`, replace `<username>`, and submit:
 
 ```bash
 kubectl create -f yamls/mpi-tensorflow.yaml
@@ -284,7 +284,7 @@ kubectl get pods
 Once the launcher pod is `Running`, stream its logs:
 
 ```bash
-kubectl logs -f <name>-mpi-tensorflow-XXXXX-launcher-YYYYY
+kubectl logs -f <username>-mpi-tensorflow-XXXXX-launcher-YYYYY
 ```
 
 You should see the standard ResNet-101 throughput report — total images/sec, per-GPU images/sec, and the Horovod NCCL communication summary.
@@ -302,14 +302,14 @@ You should see the standard ResNet-101 throughput report — total images/sec, p
 Clean up:
 
 ```bash
-kubectl delete mpijob <name>-mpi-tensorflow-XXXXX
+kubectl delete mpijob <username>-mpi-tensorflow-XXXXX
 ```
 
 ---
 
 ## A.6 Cleanup (NVIDIA section)
 
-Delete anything you created so nothing is left running (replace `<username>` / `<name>` / release name as you used):
+Delete anything you created so nothing is left running (replace `<username>` / `<username>` / release name as you used):
 
 ```bash
 # PyTorch training (if still running)
@@ -325,8 +325,8 @@ kubectl delete -n nrp-training-k8s -f yamls/ollama-rag.yaml --ignore-not-found
 helm uninstall h2ogpt-<username>
 
 # MPIJobs (if still running)
-kubectl delete mpijob <name>-mpi-pi-XXXXX --ignore-not-found
-kubectl delete mpijob <name>-mpi-tensorflow-XXXXX --ignore-not-found
+kubectl delete mpijob <username>-mpi-pi-XXXXX --ignore-not-found
+kubectl delete mpijob <username>-mpi-tensorflow-XXXXX --ignore-not-found
 ```
 
 Stop any `kubectl port-forward` processes you started.
