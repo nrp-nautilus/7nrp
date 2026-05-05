@@ -20,6 +20,17 @@ Three independent hands-on tutorials for the National Research Platform. Each tu
 - Mohammad Sada — San Diego Supercomputer Center, UCSD
 - Daniel Diaz — San Diego Supercomputer Center, UCSD
 
+## 📋 Pre-training survey — please take 2 minutes before we start
+
+<a href="images/pre-training-survey-qr.png"><img src="images/pre-training-survey-qr.png" alt="Pre-training survey QR code" width="180" align="right"></a>
+
+Scan the QR on the right (or open it from [`images/pre-training-survey-qr.png`](images/pre-training-survey-qr.png)) to take the **pre-training survey**. It's a quick set of questions about your prior Kubernetes / NRP / AI experience and what you hope to get out of the workshop.
+
+Your answers let us measure how much each tutorial actually moves the needle — comparing pre-training and post-training responses, plus aggregated session telemetry, is how we study the **efficacy of our training methods** and decide what to keep, cut, or rework for future NRP workshops. The data is collected in aggregate; the more responses we get, the better the next cohort's experience will be.
+
+<br clear="right">
+
+
 ## Quick start
 
 Two ways to follow along during the workshop:
