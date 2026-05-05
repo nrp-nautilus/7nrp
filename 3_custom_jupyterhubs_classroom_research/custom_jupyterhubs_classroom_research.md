@@ -26,7 +26,17 @@ Helm is a package manager for Kubernetes — instead of authoring every Deployme
 
 If you're working inside the [training JupyterHub](https://training.nrp-nautilus.io/), `kubectl`, `helm`, and the kubeconfig are already wired up in your terminal — open a terminal in JupyterLab, run `kubectl auth whoami && helm version --short` to confirm, then skip ahead to [section 2](#2-add-the-jupyterhub-helm-repository).
 
+> **Important:**
+>
+> The following instructions are for installing helm and kubectl locally. **If you are using the training JupyterHub, continue to [Section 2](#2-add-the-jupyterhub-helm-repository)**
+
+
+
+
+
 If you're running locally, install both tools and add the workshop kubeconfig with the three universal copy-paste commands below. None of them assume you have cloned this repo. The kubeconfig carries the `jupyterhub-sa` service-account token plus the cluster CA; the embedded token is valid for the duration of 7NRP, through end-of-day Thursday, May 7, 2026.
+<details>
+  <summary>Click to reveal local install instructions</summary>
 
 **macOS / Linux**
 
@@ -99,6 +109,9 @@ Username:   system:serviceaccount:nrp-training:jupyterhub-sa
 v3.16.4+g7877b45
 ```
 </details>
+</details>
+
+<div style="height: 4em;"></div>
 
 > **After the workshop ends:** this kubeconfig stops working. For ongoing NRP Nautilus access, configure `kubelogin` to use your personal **CILogon** identity instead of this temporary service account. Follow the official getting-started guide: <https://nrp.ai/documentation/userdocs/start/getting-started/>.
 
