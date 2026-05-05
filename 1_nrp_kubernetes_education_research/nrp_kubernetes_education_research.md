@@ -647,23 +647,36 @@ result Mon May  4 09:37:52 UTC 2026
 
 ### kubectl port-forward
 
-Open a tunnel from `localhost:8080` on your laptop to port 80 on the pod:
+Open a tunnel from `localhost:8080` on your laptop to port 80 on the pod. `port-forward` runs in the **foreground** — open a second terminal for `curl`, or background it with `&`:
 
 ```bash
+# Terminal 1 (leave running):
 kubectl port-forward "$POD" -n nrp-training-k8s 8080:80
-# in another terminal:
-curl -s http://localhost:8080 | head -3
-# Ctrl-C in the first terminal to close the tunnel
+
+# Terminal 2:
+curl -s -o /dev/null -w "HTTP %{http_code} bytes=%{size_download}\n" http://localhost:8080
+curl -s http://localhost:8080 | grep -iE "welcome|server name"
+
+# Ctrl-C in Terminal 1 to close the tunnel
 ```
 
 <details>
 <summary>Expected output (in the curl terminal)</summary>
 
 ```
+HTTP 200 bytes=615
+<title>Welcome to nginx!</title>
+```
+
+If you didn't run `kubectl set image … nginx:alpine` earlier, you're still on the original `nginxdemos/hello:plain-text` image, which returns plaintext instead:
+
+```
+HTTP 200 bytes=158
 Server address: 10.244.x.x:80
 Server name: hello-deploy-<username>-6f8c4bb7c7-9xw6m
-Date: 04/May/2026:09:37:52 +0000
 ```
+
+Either way, **`HTTP 200`** confirms the tunnel is working. Terminal 1 will also have logged `Forwarding from 127.0.0.1:8080 -> 80` when the tunnel opened, and `Handling connection for 8080` for each `curl`.
 </details>
 
 Or forward against the **Deployment** instead of a specific pod (kubectl picks any ready pod from the Deployment for you, so the tunnel survives pod restarts):
