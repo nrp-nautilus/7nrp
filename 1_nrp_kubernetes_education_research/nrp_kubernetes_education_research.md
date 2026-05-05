@@ -160,7 +160,6 @@ After these three commands, `kubectl auth whoami` should print `system:serviceac
 There are many types of GPU available on NRP. You can view live availability of all resources at [https://nrp.ai/viz/resources/](https://nrp.ai/viz/resources/).
 
 ### Hands-on: Explore GPU options on NRP
-<!-- FIXME: get nodes does not work for users, I think -->
 ```bash
 # print list of NRP nodes with GPU label
 kubectl get nodes -L nvidia.com/gpu.product
