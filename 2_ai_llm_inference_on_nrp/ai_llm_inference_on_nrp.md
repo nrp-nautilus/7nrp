@@ -37,7 +37,7 @@ NRP exposes GPUs to users in two complementary ways:
 > 🔑 **Workshop token & endpoint.** Every example below uses these two values verbatim — copy them once:
 >
 > - **API base URL:** `https://ellm.nrp-nautilus.io/v1`
-> - **Bearer token:** `N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj`
+> - **Bearer token:** `rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4`
 >
 > They are already exported as `OPENAI_API_BASE` / `OPENAI_API_KEY` inside the workshop JupyterHub and inside any pod that mounts the `nrp-llm-token` Secret in `nrp-training-k8s`. After the workshop, mint your own token at [https://nrp.ai/llmtoken](https://nrp.ai/llmtoken) and substitute it in.
 
@@ -80,7 +80,7 @@ The endpoint is OpenAI-compatible — anything that speaks OpenAI's REST API spe
 **List models:**
 
 ```bash
-curl -s -H "Authorization: Bearer N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj" \
+curl -s -H "Authorization: Bearer rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4" \
      https://ellm.nrp-nautilus.io/v1/models | python3 -m json.tool | head -30
 ```
 
@@ -103,7 +103,7 @@ curl -s -H "Authorization: Bearer N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj" \
 
 ```bash
 curl -s -X POST https://ellm.nrp-nautilus.io/v1/chat/completions \
-  -H "Authorization: Bearer N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj" \
+  -H "Authorization: Bearer rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "minimax-m2",
@@ -118,7 +118,7 @@ curl -s -X POST https://ellm.nrp-nautilus.io/v1/chat/completions \
 
 ```bash
 curl -sN -X POST https://ellm.nrp-nautilus.io/v1/chat/completions \
-  -H "Authorization: Bearer N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj" \
+  -H "Authorization: Bearer rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4" \
   -H "Content-Type: application/json" \
   -d '{"model":"minimax-m2","stream":true,"messages":[{"role":"user","content":"Count 1 to 5 with a brief reason for each."}]}'
 ```
@@ -143,7 +143,7 @@ python3 -c 'import openai; print(openai.__version__)'
 from openai import OpenAI
 
 client = OpenAI(
-    api_key="N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj",
+    api_key="rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4",
     base_url="https://ellm.nrp-nautilus.io/v1",
 )
 
@@ -163,7 +163,7 @@ print(resp.choices[0].message.content)
 from openai import OpenAI
 
 client = OpenAI(
-    api_key="N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj",
+    api_key="rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4",
     base_url="https://ellm.nrp-nautilus.io/v1",
 )
 
@@ -212,7 +212,7 @@ cat > ~/.config/opencode/opencode.json <<'JSON'
       "name": "NRP LLM",
       "options": {
         "baseURL": "https://ellm.nrp-nautilus.io/v1",
-        "apiKey": "N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj"
+        "apiKey": "rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4"
       },
       "models": {
         "minimax-m2": { "name": "MiniMax M2"  },
@@ -382,7 +382,7 @@ kubectl exec -it -n nrp-training-k8s tutorial-<username>-vectordb -- bash -c '
   python3 nrp_docs_rag.py --reindex'
 ```
 
-The pod gets `OPENAI_API_BASE` (`https://ellm.nrp-nautilus.io/v1`) and `OPENAI_API_KEY` (`N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj`) injected from the `nrp-llm-token` Secret, so the script automatically picks the **managed LLM** as the generative backend (default model: `gemma`). Override with `RAG_MODEL=minimax-m2` or any other id from the §1 table.
+The pod gets `OPENAI_API_BASE` (`https://ellm.nrp-nautilus.io/v1`) and `OPENAI_API_KEY` (`rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4`) injected from the `nrp-llm-token` Secret, so the script automatically picks the **managed LLM** as the generative backend (default model: `gemma`). Override with `RAG_MODEL=minimax-m2` or any other id from the §1 table.
 
 **Expected output (real run, ~60–90s including clone):**
 
@@ -407,7 +407,7 @@ export MILVUS_HOST=milvus.nrp-nautilus.io MILVUS_PORT=50051 MILVUS_SECURE=true \
        MILVUS_USER=<your-milvus-user> MILVUS_PASSWORD=<your-milvus-password> \
        MILVUS_DB_NAME=<your-milvus-db>
 export OPENAI_API_BASE=https://ellm.nrp-nautilus.io/v1 \
-       OPENAI_API_KEY=N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj
+       OPENAI_API_KEY=rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4
 python3 2_ai_llm_inference_on_nrp/yamls/nrp_docs_rag.py --reindex
 ```
 

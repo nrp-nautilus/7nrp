@@ -217,7 +217,7 @@ def retrieve(coll: Collection, embedder: SentenceTransformer, question: str, k: 
 
 def make_llm() -> Tuple[OpenAI, str]:
     base = os.environ.get("OPENAI_API_BASE", "https://ellm.nrp-nautilus.io/v1")
-    key = os.environ.get("OPENAI_API_KEY", "N4clNxbp5jkKB2f0TjGcuSioFyqB3iCj")
+    key = os.environ.get("OPENAI_API_KEY", "rifgnLi8QEfRECOgFKVFHaeTLBeSogQ4")
     if base.startswith("https://ellm.nrp-nautilus.io"):
         default_model = "gemma"
     else:
