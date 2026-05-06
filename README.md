@@ -36,7 +36,7 @@ All Tuesday sessions run at the **San Diego Supercomputer Center Auditorium** (a
 |---|---|---|
 | 9:00 – 10:30 AM | [**1. NRP and Kubernetes for Education and Research**](1_nrp_kubernetes_education_research/nrp_kubernetes_education_research.md) — Tatineni, Sada, Diaz (UCSD/SDSC) | — |
 | 10:30 – 11:00 AM | *Break* | |
-| 11:00 AM – 12:00 PM | [**2. National Data Platform Education Hub on NRP**](4_ndp_education_hub/) — Sada, Ramonetti, O'Laughlin (UCSD/SDSC) | — |
+| 11:00 AM – 12:00 PM | [**2. National Data Platform Education Hub on NRP**](4_ndp_education_hub/) — Ramonetti, O'Laughlin (UCSD/SDSC) | — |
 | 12:00 – 1:00 PM | *Lunch* | |
 | 1:00 – 2:00 PM | [**3. Using AI and LLM Inference on NRP**](2_ai_llm_inference_on_nrp/ai_llm_inference_on_nrp.md) — Sada (UCSD/SDSC) | **Tutorial on Drone Usage and IoT** — Graham (UCSD/SDSC) |
 | 2:00 – 3:00 PM | [**4. Setting Up Custom JupyterHubs**](3_custom_jupyterhubs_classroom_research/custom_jupyterhubs_classroom_research.md) — Sada, Diaz (UCSD/SDSC) | **ICICLE Digital Agriculture Pipeline** — Subramoni (Ohio State) |
@@ -76,7 +76,7 @@ Click anywhere on a card (number, title, path, or technology badge) to open the 
 
 [`4_ndp_education_hub/`](4_ndp_education_hub/) &nbsp; [![Slides](https://img.shields.io/badge/Slides-NDP%20Education%20Hub-00529B?style=flat-square&logo=microsoftpowerpoint&logoColor=white)](4_ndp_education_hub/NDP-Education-Hub.pptx) &nbsp; [![NDP](https://img.shields.io/badge/NDP-nationaldataplatform.org-00A1EA?style=flat-square)](https://nationaldataplatform.org/)
 
-Mohammad Firas Sada, Pedro Ramonetti, and Katie O'Laughlin walk through the National Data Platform's **Education Hub** running on NRP — what it offers, how courses and workshops use it, and the integration patterns that wire NDP datasets into JupyterHub-based curricula. Slides only; the live session walks through running NDP demos on the same workshop JupyterHub.
+Pedro Ramonetti and Katie O'Laughlin walk through the National Data Platform's **Education Hub** running on NRP — what it offers, how courses and workshops use it, and the integration patterns that wire NDP datasets into JupyterHub-based curricula. Slides only; the live session walks through running NDP demos on the same workshop JupyterHub.
 
 ### [![3](https://img.shields.io/badge/3-0FB1A8?style=flat-square) Using AI and LLM Inference on NRP (Jupyter AI, Agents, RAG)](2_ai_llm_inference_on_nrp/ai_llm_inference_on_nrp.md)
 

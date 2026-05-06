@@ -3,7 +3,6 @@
 7NRP Tutorial Day · **Tuesday, May 5, 2026 · 11:00 AM – 12:00 PM** · SDSC Auditorium
 
 **Presenters**
-- Mohammad Firas Sada — San Diego Supercomputer Center, UCSD
 - Pedro Ramonetti — San Diego Supercomputer Center, UCSD
 - Katie O'Laughlin — San Diego Supercomputer Center, UCSD
 
